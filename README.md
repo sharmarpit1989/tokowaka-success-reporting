@@ -138,7 +138,7 @@ See [ENVIRONMENT_VARIABLES.md](ENVIRONMENT_VARIABLES.md) for all options.
 AIVisibilityDashboard/
 ├── backend/              # Node.js + Express API
 ├── frontend/             # React + Vite app
-├── external-tools/       # Bundled analysis tools
+├── external-tools/       # LLM Presence Tracker (content analysis)
 ├── data/                 # Data storage (auto-created)
 ├── logs/                 # Application logs
 └── docs-archive/         # Detailed technical docs
@@ -184,7 +184,7 @@ Built during Garage Week by the Customer Engineering Automations Team.
 
 **Integrates with:**
 - LLM Presence Tracker (content analysis)
-- Reporting Automation (citation tracking)
+- [Tokowaka Measurement Automation](https://github.com/sharmarpit1989/tokowaka-measurement-automation) (standalone CLI for citation tracking)
 
 ---
 
