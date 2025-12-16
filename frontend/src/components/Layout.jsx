@@ -3,7 +3,6 @@ import { useState } from 'react'
 import { 
   LayoutDashboard, 
   TrendingUp, 
-  FolderOpen,
   Sparkles,
   Zap,
   Trash2,
@@ -24,7 +23,6 @@ function Layout({ children }) {
     { name: 'AI Visibility Analysis', href: '/ai-visibility', icon: Zap },
     { name: 'Citation Performance', href: '/citation-performance', icon: TrendingUp },
     { name: 'Trends & Insights', href: '/trends-insights', icon: Sparkles },
-    { name: 'Projects', href: '/projects', icon: FolderOpen },
   ]
 
   const sidebarWidth = isSidebarExpanded || isPinned ? 'w-64' : 'w-20'

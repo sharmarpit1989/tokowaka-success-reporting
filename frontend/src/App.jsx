@@ -4,7 +4,6 @@ import Layout from './components/Layout'
 import Home from './pages/Home'
 import CitationPerformance from './pages/CitationPerformance'
 import TrendsInsights from './pages/TrendsInsights'
-import Projects from './pages/Projects'
 import AIVisibility from './pages/AIVisibility'
 
 function App() {
@@ -17,7 +16,6 @@ function App() {
             <Route path="/ai-visibility" element={<AIVisibility />} />
             <Route path="/citation-performance" element={<CitationPerformance />} />
             <Route path="/trends-insights" element={<TrendsInsights />} />
-            <Route path="/projects" element={<Projects />} />
           </Routes>
         </Layout>
       </Router>

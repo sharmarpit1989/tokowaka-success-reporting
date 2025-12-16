@@ -42,8 +42,7 @@ const config = {
   storage: {
     dataDir: path.join(__dirname, '..', '..', process.env.DATA_DIR || 'data'),
     uploadsDir: path.join(__dirname, '..', '..', process.env.DATA_DIR || 'data', 'uploads'),
-    resultsDir: path.join(__dirname, '..', '..', process.env.DATA_DIR || 'data', 'results'),
-    projectsDir: path.join(__dirname, '..', '..', process.env.DATA_DIR || 'data', 'projects')
+    resultsDir: path.join(__dirname, '..', '..', process.env.DATA_DIR || 'data', 'results')
   },
 
   // External Tools Paths

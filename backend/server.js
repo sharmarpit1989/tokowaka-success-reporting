@@ -88,18 +88,15 @@ app.use('/data', express.static(config.storage.dataDir));
 fs.ensureDirSync(config.storage.dataDir);
 fs.ensureDirSync(config.storage.uploadsDir);
 fs.ensureDirSync(config.storage.resultsDir);
-fs.ensureDirSync(config.storage.projectsDir);
 
 serverLogger.info('Data directories initialized');
 
 // API Routes
 const citationRoutes = require('./routes/citations');
-const projectRoutes = require('./routes/projects');
 const spacecatRoutes = require('./routes/spacecat');
 const unifiedRoutes = require('./routes/unified');
 
 app.use('/api/citations', citationRoutes);
-app.use('/api/projects', projectRoutes);
 app.use('/api/spacecat', spacecatRoutes);
 app.use('/api/unified', unifiedRoutes);
 
