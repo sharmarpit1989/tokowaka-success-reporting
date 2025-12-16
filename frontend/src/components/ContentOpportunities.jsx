@@ -2,8 +2,9 @@ import { useState, useEffect } from 'react';
 import {
   Lightbulb, TrendingUp, Target, Sparkles,
   RefreshCw, Info, AlertCircle, CheckCircle, FileText, List, Table,
-  BarChart3, Users, Zap, ChevronRight
+  BarChart3, Users, Zap, ChevronRight, ExternalLink, Clock, Database
 } from 'lucide-react';
+import SkeletonLoader from './SkeletonLoader';
 
 /**
  * Content Opportunities Component
@@ -11,9 +12,12 @@ import {
  */
 function ContentOpportunities({ projectId }) {
   const [loading, setLoading] = useState(false);
+  const [loadingStage, setLoadingStage] = useState('');
   const [error, setError] = useState(null);
   const [data, setData] = useState(null);
   const [selectedTheme, setSelectedTheme] = useState(null);
+  const [showAllRecommendations, setShowAllRecommendations] = useState(false);
+  const [showThemes, setShowThemes] = useState(false); // Collapsed by default
 
   // Auto-load content opportunities on mount when projectId is available
   useEffect(() => {
@@ -25,28 +29,40 @@ function ContentOpportunities({ projectId }) {
   const loadOpportunities = async (regenerate = false) => {
     setLoading(true);
     setError(null);
+    setLoadingStage('Loading citation data...');
 
     try {
+      // Simulate progress stages for better UX
+      setTimeout(() => setLoadingStage('Analyzing prompt patterns...'), 500);
+      setTimeout(() => setLoadingStage('Identifying content gaps...'), 2000);
+      setTimeout(() => setLoadingStage('Generating AI recommendations...'), 5000);
+      setTimeout(() => setLoadingStage('Validating against your website...'), 10000);
+
       const response = await fetch(`/api/unified/${projectId}/content-opportunities?regenerate=${regenerate}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' }
       });
 
       if (!response.ok) {
-        throw new Error(`Failed to load opportunities: ${response.status}`);
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `Failed to load opportunities: ${response.status}`);
       }
 
       const result = await response.json();
       setData(result);
+      setLoadingStage('Complete!');
+      
       console.log('[Content Opportunities] Data loaded:', {
         cached: result.cached,
         generatedAt: result.generatedAt,
         themesCount: result.promptAnalysis?.themes?.length || 0,
-        recommendationsCount: result.aiRecommendations?.length || 0
+        recommendationsCount: result.aiRecommendations?.length || 0,
+        analyzedUrls: result.validation?.analyzedUrls || 0
       });
     } catch (err) {
       console.error('[Content Opportunities] Error:', err);
       setError(err.message);
+      setLoadingStage('');
     } finally {
       setLoading(false);
     }
@@ -54,55 +70,44 @@ function ContentOpportunities({ projectId }) {
 
   return (
     <div className="space-y-6">
-      {/* Tips Banner - When this section provides maximum value */}
-      <div className="bg-gradient-to-r from-purple-50 to-blue-50 border-l-4 border-purple-500 rounded-lg p-4 shadow-sm">
-        <div className="flex items-start gap-3">
-          <Info className="w-5 h-5 text-purple-600 flex-shrink-0 mt-0.5" />
-          <div className="flex-1">
-            <h4 className="text-sm font-bold text-purple-900 mb-2">💡 Get the Most Value From This Analysis</h4>
-            <div className="text-sm text-purple-800 space-y-1">
-              <p>✅ <strong>Upload Brand Presence data</strong> from multiple weeks to identify citation patterns and trends</p>
-              <p>✅ <strong>Analyze your content</strong> (URLs) to validate recommendations against what you already have</p>
-              <p>✅ <strong>More data = Better insights:</strong> The more URLs analyzed and weeks tracked, the more accurate the content gaps and opportunities identified</p>
-              <p>💾 <strong>Data persists:</strong> Your analysis is automatically saved and will load instantly on future visits. Click "Regenerate" to refresh with new data.</p>
+      {/* Minimal Context Banner - Only show when actionable */}
+      {data && data.validation && data.validation.analyzedUrls < 5 && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-sm">
+              <Info className="w-4 h-4 text-blue-600 flex-shrink-0" />
+              <span className="text-blue-900">
+                {data.validation.analyzedUrls === 0 ? (
+                  <><strong>Tip:</strong> Analyze URLs to get page-specific recommendations</>
+                ) : (
+                  <><strong>{data.validation.analyzedUrls} URLs analyzed</strong> – Analyze 10+ for better insights</>
+                )}
+              </span>
             </div>
+            <a
+              href="#"
+              className="text-sm text-blue-700 hover:text-blue-800 font-medium underline flex items-center gap-1"
+              onClick={(e) => { e.preventDefault(); window.location.href = '#/insights'; }}
+            >
+              Analyze URLs <ExternalLink className="w-3.5 h-3.5" />
+            </a>
           </div>
         </div>
-      </div>
+      )}
 
-      <div className="card border-2 border-green-200 bg-gradient-to-br from-green-50 to-white">
-        {/* Header */}
-        <div className="p-6 border-b border-gray-200">
+      <div className="card bg-white shadow-sm">
+        {/* Simplified Header */}
+        <div className="px-6 py-4 border-b border-gray-200">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Lightbulb className="w-6 h-6 text-green-600" />
-              <div>
-                <div className="flex items-center gap-2 flex-wrap">
-                  <h3 className="text-xl font-bold text-gray-900">Content Opportunities</h3>
-                  {data?.cached && (
-                    <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full font-medium">
-                      ⚡ Cached
-                    </span>
-                  )}
-                  {data?.generatedAt && (
-                    <span className="text-xs text-gray-500">
-                      Generated {new Date(data.generatedAt).toLocaleString()}
-                    </span>
-                  )}
-                </div>
-                <p className="text-sm text-gray-600 mt-1">
-                  AI-powered analysis of prompt patterns and content gaps
-                </p>
-              </div>
-            </div>
+            <h3 className="text-2xl font-bold text-gray-900">Content Opportunities</h3>
             {data && !loading && (
               <button
                 onClick={() => loadOpportunities(true)}
-                className="px-4 py-2 text-sm font-medium text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors flex items-center gap-2 border border-blue-200"
-                title="Regenerate analysis with latest data"
+                className="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors flex items-center gap-1.5"
+                title="Refresh with latest data"
               >
                 <RefreshCw className="w-4 h-4" />
-                Regenerate
+                Refresh
               </button>
             )}
           </div>
@@ -111,7 +116,7 @@ function ContentOpportunities({ projectId }) {
         {/* Content */}
         <div className="p-6 space-y-6">
           {loading ? (
-            <LoadingState />
+            <LoadingState stage={loadingStage} />
           ) : error ? (
             <ErrorState error={error} onRetry={loadOpportunities} />
           ) : data ? (
@@ -119,26 +124,46 @@ function ContentOpportunities({ projectId }) {
               {/* Summary Stats */}
               <SummaryStats data={data} />
 
-              {/* Theme Analysis */}
-              {data.promptAnalysis?.themes && data.promptAnalysis.themes.length > 0 && (
-                <ThemeAnalysisSection 
-                  themes={data.promptAnalysis.themes}
-                  selectedTheme={selectedTheme}
-                  onSelectTheme={setSelectedTheme}
-                />
-              )}
-
-              {/* AI Recommendations */}
+              {/* AI Recommendations - Primary Focus */}
               {data.aiRecommendations && data.aiRecommendations.length > 0 && (
               <AIRecommendationsSection 
                 recommendations={data.aiRecommendations}
                 isAIGenerated={data.isAIGenerated}
                 validation={data.validation}
                 onRegenerate={loadOpportunities}
+                showAll={showAllRecommendations}
+                onToggleShowAll={() => setShowAllRecommendations(!showAllRecommendations)}
               />
               )}
 
-              {/* Content Structure Insights */}
+              {/* Theme Analysis - Collapsible Secondary Info */}
+              {data.promptAnalysis?.themes && data.promptAnalysis.themes.length > 0 && (
+                <div className="border-t border-gray-200 pt-6 mt-6">
+                  <button
+                    onClick={() => setShowThemes(!showThemes)}
+                    className="w-full flex items-center justify-between text-left mb-4 text-gray-700 hover:text-gray-900"
+                  >
+                    <h4 className="font-semibold flex items-center gap-2">
+                      <Target className="w-5 h-5 text-purple-600" />
+                      Detailed Theme Analysis
+                      <span className="text-xs text-gray-500 font-normal">
+                        ({data.promptAnalysis.themes.length} themes)
+                      </span>
+                    </h4>
+                    <ChevronRight className={`w-5 h-5 transition-transform ${showThemes ? 'rotate-90' : ''}`} />
+                  </button>
+                  
+                  {showThemes && (
+                    <ThemeAnalysisSection 
+                      themes={data.promptAnalysis.themes}
+                      selectedTheme={selectedTheme}
+                      onSelectTheme={setSelectedTheme}
+                    />
+                  )}
+                </div>
+              )}
+
+              {/* Content Structure Insights - Also Collapsible */}
               {data.contentPatterns && (
                 <ContentStructureInsights patterns={data.contentPatterns} />
               )}
@@ -152,14 +177,45 @@ function ContentOpportunities({ projectId }) {
   );
 }
 
-// Loading State
-function LoadingState() {
+// Loading State with Progress Stages and Skeleton Preview
+function LoadingState({ stage }) {
   return (
-    <div className="flex items-center justify-center py-12">
-      <div className="text-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto mb-4"></div>
-        <p className="text-sm text-gray-600 font-medium">Analyzing prompt patterns...</p>
-        <p className="text-xs text-gray-500 mt-2">This may take 15-30 seconds</p>
+    <div className="space-y-8 animate-fade-in">
+      {/* Loading Header */}
+      <div className="flex items-center justify-center py-8">
+        <div className="text-center max-w-md">
+          {/* Animated Icon */}
+          <div className="relative w-20 h-20 mx-auto mb-6">
+            <div className="absolute inset-0 rounded-full border-4 border-green-100"></div>
+            <div className="absolute inset-0 rounded-full border-4 border-green-600 border-t-transparent animate-spin"></div>
+            <Sparkles className="w-8 h-8 text-green-600 absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 animate-pulse" />
+          </div>
+          
+          {/* Stage Text */}
+          <p className="text-base text-gray-800 font-semibold mb-2 animate-pulse-soft">{stage || 'Loading...'}</p>
+          <p className="text-sm text-gray-500">This may take 15-30 seconds</p>
+          
+          {/* Progress Indicators */}
+          <div className="mt-6 flex items-center justify-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-green-600 animate-pulse"></div>
+            <div className="w-2 h-2 rounded-full bg-green-600 animate-pulse" style={{animationDelay: '0.2s'}}></div>
+            <div className="w-2 h-2 rounded-full bg-green-600 animate-pulse" style={{animationDelay: '0.4s'}}></div>
+          </div>
+        </div>
+      </div>
+      
+      {/* Skeleton Preview - Shows what's loading */}
+      <div className="space-y-6 opacity-60">
+        <div className="text-sm text-gray-500 text-center mb-4">Preparing your insights...</div>
+        <SkeletonLoader type="statCard" count={3} className="grid grid-cols-1 md:grid-cols-3 gap-4" />
+        <SkeletonLoader type="card" count={2} />
+      </div>
+      
+      {/* Tip */}
+      <div className="bg-blue-50 rounded-lg p-4 border border-blue-200 animate-slide-in-right">
+        <p className="text-xs text-blue-800">
+          💡 <strong>Tip:</strong> Analyzing more URLs from your site provides better validation and more specific recommendations
+        </p>
       </div>
     </div>
   );
@@ -200,55 +256,31 @@ function EmptyState({ onLoad }) {
   );
 }
 
-// Summary Stats
+// Minimal Summary Stats
 function SummaryStats({ data }) {
-  const { promptAnalysis, contentPatterns } = data;
+  const { promptAnalysis } = data;
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-      <StatCard
-        icon={<FileText className="w-5 h-5 text-blue-600" />}
-        label="Unique Prompts"
-        value={promptAnalysis?.totalUniquePrompts || 0}
-        color="blue"
-      />
-      <StatCard
-        icon={<Target className="w-5 h-5 text-purple-600" />}
-        label="Themes Identified"
-        value={promptAnalysis?.themes?.length || 0}
-        color="purple"
-      />
-      <StatCard
-        icon={<TrendingUp className="w-5 h-5 text-green-600" />}
-        label="Opportunities"
-        value={promptAnalysis?.opportunities?.length || 0}
-        color="green"
-      />
-      <StatCard
-        icon={<Lightbulb className="w-5 h-5 text-yellow-600" />}
-        label="Recommendations"
-        value={data.aiRecommendations?.length || 0}
-        color="yellow"
-      />
-    </div>
-  );
-}
-
-function StatCard({ icon, label, value, color }) {
-  const colors = {
-    blue: 'bg-blue-50 border-blue-200',
-    purple: 'bg-purple-50 border-purple-200',
-    green: 'bg-green-50 border-green-200',
-    yellow: 'bg-yellow-50 border-yellow-200'
-  };
-
-  return (
-    <div className={`${colors[color]} rounded-lg p-4 border`}>
-      <div className="flex items-center gap-2 mb-2">
-        {icon}
-        <span className="text-xs font-medium text-gray-600">{label}</span>
+    <div className="flex items-center gap-6 text-sm text-gray-600 pb-4 border-b border-gray-100">
+      <div>
+        <span className="font-semibold text-gray-900">{promptAnalysis?.totalUniquePrompts || 0}</span> prompts analyzed
       </div>
-      <div className="text-3xl font-bold text-gray-900">{value}</div>
+      <div className="text-gray-300">•</div>
+      <div>
+        <span className="font-semibold text-gray-900">{promptAnalysis?.themes?.length || 0}</span> themes
+      </div>
+      <div className="text-gray-300">•</div>
+      <div>
+        <span className="font-semibold text-gray-900">{data.aiRecommendations?.length || 0}</span> recommendations
+      </div>
+      {data.validation?.analyzedUrls > 0 && (
+        <>
+          <div className="text-gray-300">•</div>
+          <div>
+            <span className="font-semibold text-green-700">{data.validation.analyzedUrls}</span> URLs validated
+          </div>
+        </>
+      )}
     </div>
   );
 }
@@ -291,10 +323,10 @@ function ThemeCard({ theme, isSelected, onClick }) {
   };
 
   return (
-    <div className="border border-gray-200 rounded-lg overflow-hidden hover:shadow-md transition-all">
+    <div className="border border-gray-200 rounded-lg overflow-hidden hover:shadow-md transition-all duration-300 hover:translate-y-[-1px]">
       <button
         onClick={onClick}
-        className="w-full p-4 text-left hover:bg-gray-50 transition-colors"
+        className="w-full p-4 text-left hover:bg-gray-50 transition-all duration-200"
       >
         <div className="flex items-start justify-between">
           <div className="flex-1">
@@ -318,13 +350,17 @@ function ThemeCard({ theme, isSelected, onClick }) {
       </button>
 
       {isSelected && (
-        <div className="border-t border-gray-200 bg-gray-50 p-4 space-y-3 animate-fade-in">
+        <div className="border-t border-gray-200 bg-gray-50 p-4 space-y-3 animate-slide-down">
           {/* Sample Prompts */}
           <div>
             <p className="text-xs font-semibold text-gray-700 mb-2">SAMPLE PROMPTS:</p>
             <div className="space-y-2">
               {theme.prompts.slice(0, 3).map((p, idx) => (
-                <div key={idx} className="bg-white rounded p-2 text-sm border border-gray-200">
+                <div 
+                  key={idx} 
+                  className="bg-white rounded p-2 text-sm border border-gray-200 stagger-item hover:border-gray-300 transition-colors"
+                  style={{ animationDelay: `${idx * 0.05}s` }}
+                >
                   <p className="text-gray-800">"{p.prompt}"</p>
                   <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
                     <span>{(p.yourUrlCitationRate * 100).toFixed(0)}% citation rate</span>
@@ -422,6 +458,11 @@ function AIRecommendationsSection({ recommendations, isAIGenerated, validation, 
 
 function RecommendationCard({ recommendation, index }) {
   const [expanded, setExpanded] = useState(false);
+  
+  const toggleExpanded = () => {
+    console.log('Toggle clicked, current expanded:', expanded);
+    setExpanded(!expanded);
+  };
 
   const priorityConfig = {
     high: { color: 'border-red-300 bg-red-50', badge: 'bg-red-100 text-red-800', icon: '🔴' },
@@ -440,161 +481,104 @@ function RecommendationCard({ recommendation, index }) {
   const validation = recommendation.validation;
 
   return (
-    <div className={`border-l-4 ${config.color} rounded-lg overflow-hidden`}>
-      <div className="bg-white p-4">
-        <div className="flex items-start gap-3">
-          {/* Number Badge */}
-          <span className="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-green-500 to-blue-600 text-white text-sm flex items-center justify-center font-bold shadow">
-            {index + 1}
+    <div 
+      className={`
+        border-l-4 ${config.color} rounded-lg overflow-hidden bg-white 
+        shadow-sm hover:shadow-lg transition-all duration-300 ease-out
+        hover:translate-y-[-2px] stagger-item
+      `}
+      style={{ animationDelay: `${index * 0.05}s` }}
+    >
+      <div className="p-6">
+        {/* Clean Title with Priority */}
+        <div className="flex items-start gap-4 mb-4">
+          <span className={`text-xs px-2.5 py-1 rounded font-bold flex-shrink-0 ${config.badge}`}>
+            {priority === 'high' ? 'HIGH' : priority === 'medium' ? 'MED' : 'LOW'}
           </span>
-
-          <div className="flex-1 min-w-0">
-            {/* Title and badges */}
-            <div className="flex items-start justify-between gap-2 mb-2">
-              <h5 className="font-bold text-gray-900 text-base flex-1">
-                {recommendation.title}
-              </h5>
-              <div className="flex items-center gap-2 flex-shrink-0 flex-wrap justify-end">
-                {validation && validation.status && (
-                  <span className={`text-xs px-2 py-1 rounded-full border ${validationConfig[validation.status].color} font-medium`}>
-                    {validationConfig[validation.status].icon} {validationConfig[validation.status].label}
-                  </span>
-                )}
-                <span className={`text-xs px-2 py-1 rounded-full ${config.badge} font-medium`}>
-                  {config.icon} {priority}
-                </span>
-              </div>
+          <div className="flex-1">
+            <h5 className="text-xl font-bold text-gray-900 mb-1.5">
+              {recommendation.title}
+            </h5>
+            {/* Minimal metadata in one line */}
+            <div className="text-xs text-gray-500">
+              {recommendation.theme}
+              {recommendation.metricFocus && recommendation.metricFocus !== 'general' && (
+                <> · Improves {recommendation.metricFocus}</>
+              )}
             </div>
+          </div>
+        </div>
 
-            {/* Theme tag */}
-            {recommendation.theme && (
-              <span className="inline-block text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded-full mb-3">
-                {recommendation.theme}
-              </span>
-            )}
+        {/* Description */}
+        <p className="text-gray-700 leading-relaxed mb-4 text-base">
+          {recommendation.description}
+        </p>
 
-            {/* Description */}
-            <p className="text-gray-700 leading-relaxed mb-3">
-              {recommendation.description}
-            </p>
-
-            {/* Validation Message (if available) */}
-            {validation && validation.message && (
-              <div className={`mb-3 p-3 rounded-lg border ${
-                validation.status === 'exists' ? 'bg-green-50 border-green-200' :
-                validation.status === 'partial' ? 'bg-yellow-50 border-yellow-200' :
-                'bg-red-50 border-red-200'
-              }`}>
-                <p className="text-sm text-gray-800 leading-relaxed">
-                  {validation.message}
-                </p>
-                
-                {/* Existing URLs */}
-                {validation.existingUrls && validation.existingUrls.length > 0 && (
-                  <div className="mt-2">
-                    <p className="text-xs font-semibold text-gray-700 mb-1">FOUND ON:</p>
-                    <div className="space-y-1">
-                      {validation.existingUrls.map((url, idx) => (
-                        <a
-                          key={idx}
-                          href={url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="block text-xs text-blue-600 hover:text-blue-700 underline truncate"
-                        >
-                          {url}
-                        </a>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Content Structure (if available) */}
-            {recommendation.contentStructure && Object.keys(recommendation.contentStructure).length > 0 && (
-              <div className="bg-gray-50 rounded-lg p-3 mb-3 border border-gray-200">
-                <p className="text-xs font-semibold text-gray-600 mb-2">RECOMMENDED CONTENT STRUCTURE:</p>
-                <div className="flex flex-wrap gap-3">
-                  {recommendation.contentStructure.tables > 0 && (
-                    <div className="flex items-center gap-1 text-sm">
-                      <Table className="w-4 h-4 text-blue-600" />
-                      <span className="text-gray-700">{recommendation.contentStructure.tables} comparison tables</span>
-                    </div>
-                  )}
-                  {recommendation.contentStructure.lists > 0 && (
-                    <div className="flex items-center gap-1 text-sm">
-                      <List className="w-4 h-4 text-green-600" />
-                      <span className="text-gray-700">{recommendation.contentStructure.lists} structured lists</span>
-                    </div>
-                  )}
-                  {recommendation.contentStructure.steps > 0 && (
-                    <div className="flex items-center gap-1 text-sm">
-                      <Zap className="w-4 h-4 text-orange-600" />
-                      <span className="text-gray-700">{recommendation.contentStructure.steps}-step guide</span>
-                    </div>
-                  )}
-                  {recommendation.contentStructure.faqs > 0 && (
-                    <div className="flex items-center gap-1 text-sm">
-                      <Info className="w-4 h-4 text-purple-600" />
-                      <span className="text-gray-700">{recommendation.contentStructure.faqs} FAQs</span>
-                    </div>
-                  )}
-                  {recommendation.contentStructure.examples > 0 && (
-                    <div className="flex items-center gap-1 text-sm">
-                      <BarChart3 className="w-4 h-4 text-yellow-600" />
-                      <span className="text-gray-700">{recommendation.contentStructure.examples} examples</span>
-                    </div>
+            {/* Target URLs (compact) */}
+            {recommendation.targetUrls && recommendation.targetUrls.length > 0 && (
+              <div className="mb-3 p-2.5 rounded bg-amber-50 border-l-2 border-amber-400">
+                <p className="text-xs font-medium text-amber-900 mb-1.5">Target pages:</p>
+                <div className="space-y-0.5">
+                  {recommendation.targetUrls.slice(0, 2).map((url, idx) => (
+                    <a
+                      key={idx}
+                      href={url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block text-xs text-blue-600 hover:text-blue-800 truncate"
+                    >
+                      {url}
+                    </a>
+                  ))}
+                  {recommendation.targetUrls.length > 2 && (
+                    <p className="text-xs text-amber-700">+{recommendation.targetUrls.length - 2} more</p>
                   )}
                 </div>
               </div>
             )}
 
-            {/* Expandable Action Items */}
-            {recommendation.actions && recommendation.actions.length > 0 && (
-              <div>
-                <button
-                  onClick={() => setExpanded(!expanded)}
-                  className="flex items-center gap-2 text-sm font-semibold text-blue-600 hover:text-blue-700 mb-2"
-                >
-                  <ChevronRight className={`w-4 h-4 transition-transform ${expanded ? 'rotate-90' : ''}`} />
-                  Action Items ({recommendation.actions.length})
-                </button>
-                
-                {expanded && (
-                  <div className="bg-blue-50 rounded-lg p-3 border border-blue-200 mb-3 animate-fade-in">
-                    <ul className="space-y-2">
-                      {recommendation.actions.map((action, aidx) => (
-                        <li key={aidx} className="flex items-start gap-2">
-                          <CheckCircle className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
-                          <span className="text-gray-700 text-sm leading-relaxed">{action}</span>
-                        </li>
-                      ))}
-                    </ul>
+            {/* Validation (minimal) */}
+            {validation && validation.status && (
+              <div className={`mb-3 px-2.5 py-2 rounded text-xs ${
+                validation.status === 'exists' ? 'bg-green-50 text-green-800' :
+                validation.status === 'partial' ? 'bg-yellow-50 text-yellow-800' :
+                'bg-red-50 text-red-800'
+              }`}>
+                {validation.status === 'exists' && '✓ Content exists - focus on optimization'}
+                {validation.status === 'partial' && '⚠ Partial content found - expand or enhance'}
+                {validation.status === 'missing' && '✗ Content gap - create new content'}
+              </div>
+            )}
+
+        {/* Action Items - Expandable */}
+        {recommendation.actions && recommendation.actions.length > 0 && (
+          <div className="border-t border-gray-100 pt-3 mt-3">
+            <button
+              onClick={toggleExpanded}
+              className="w-full flex items-center justify-between text-sm font-medium text-gray-700 hover:text-gray-900 mb-2 transition-colors"
+            >
+              <span className="flex items-center gap-1.5 pointer-events-none">
+                <ChevronRight className={`w-4 h-4 transition-transform duration-200 ${expanded ? 'rotate-90' : ''}`} />
+                {recommendation.actions.length} Action Steps
+              </span>
+            </button>
+            
+            {expanded && (
+              <div className="space-y-1.5 pl-5 animate-fade-in">
+                {recommendation.actions.map((action, aidx) => (
+                  <div 
+                    key={aidx} 
+                    className="flex items-start gap-2 text-sm text-gray-600 stagger-item"
+                    style={{ animationDelay: `${aidx * 0.05}s` }}
+                  >
+                    <span className="text-gray-400 flex-shrink-0">{aidx + 1}.</span>
+                    <span>{action}</span>
                   </div>
-                )}
-              </div>
-            )}
-
-            {/* Funnel Insight */}
-            {recommendation.funnelInsight && (
-              <div className="flex items-start gap-2 text-sm text-gray-600 bg-purple-50 rounded p-2 border border-purple-100">
-                <Users className="w-4 h-4 text-purple-600 mt-0.5 flex-shrink-0" />
-                <span><strong>Funnel Context:</strong> {recommendation.funnelInsight}</span>
-              </div>
-            )}
-
-            {/* Potential Impact */}
-            {recommendation.potentialImpact && (
-              <div className="mt-3 flex items-center gap-2 text-sm">
-                <TrendingUp className="w-4 h-4 text-green-600" />
-                <span className="text-green-700 font-semibold">
-                  Potential Impact: {recommendation.potentialImpact}
-                </span>
+                ))}
               </div>
             )}
           </div>
-        </div>
+        )}
       </div>
     </div>
   );

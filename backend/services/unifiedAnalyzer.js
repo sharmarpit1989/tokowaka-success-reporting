@@ -9,7 +9,10 @@ const { v4: uuidv4 } = require('uuid');
 const { parseSitemaps, extractDomain } = require('./sitemapParser');
 const { processBrandPresenceData } = require('./citationProcessor');
 const { runHybridAnalysis } = require('./hybridContentAnalyzer');
+const { createServiceLogger } = require('../utils/logger');
 const config = require('../utils/config');
+
+const logger = createServiceLogger('UnifiedAnalyzer');
 
 const RESULTS_DIR = config.storage.resultsDir;
 
@@ -38,10 +41,16 @@ function invalidateCaches(projectId, contentAnalysisJobId) {
     dashboardCache.delete(projectId);
     console.log(`[Unified Analyzer] 🗑️ Dashboard cache invalidated for project ${projectId}`);
   }
-  if (contentAnalysisJobId && contentAnalysisCache.has(contentAnalysisJobId)) {
-    contentAnalysisCache.delete(contentAnalysisJobId);
-    console.log(`[Unified Analyzer] 🗑️ Content analysis cache invalidated for job ${contentAnalysisJobId}`);
-  }
+  
+  // Support both single job ID and array of job IDs
+  const jobIds = Array.isArray(contentAnalysisJobId) ? contentAnalysisJobId : (contentAnalysisJobId ? [contentAnalysisJobId] : []);
+  
+  jobIds.forEach(jobId => {
+    if (contentAnalysisCache.has(jobId)) {
+      contentAnalysisCache.delete(jobId);
+      console.log(`[Unified Analyzer] 🗑️ Content analysis cache invalidated for job ${jobId}`);
+    }
+  });
 }
 
 /**
@@ -276,10 +285,18 @@ async function runContentAnalysisForProject(projectId, urls = null, options = {}
       }
     });
   
-  // Update project
+  // Update project - maintain array of job IDs for individual URL analysis
+  if (!project.contentAnalysisJobIds) {
+    project.contentAnalysisJobIds = [];
+  }
+  project.contentAnalysisJobIds.push(analysisJobId);
+  
+  // Keep the latest job ID in singular field for backward compatibility
   project.contentAnalysisJobId = analysisJobId;
   project.status = 'processing_content';
   project.updatedAt = new Date().toISOString();
+  
+  console.log(`[Unified Analyzer] 📝 Added job ${analysisJobId} to project (total jobs: ${project.contentAnalysisJobIds.length})`);
   
   unifiedJobs.set(projectId, project);
   
@@ -377,37 +394,64 @@ async function getUnifiedDashboard(projectId) {
   }
   
   // Load content analysis if available (WITH CACHING)
+  // Support both old single job ID and new multiple job IDs
+  const jobIdsToSearch = project.contentAnalysisJobIds || (project.contentAnalysisJobId ? [project.contentAnalysisJobId] : []);
+  
   let contentAnalysis = null;
-  if (project.contentAnalysisJobId) {
-    // Check content analysis cache first
-    const cachedAnalysis = contentAnalysisCache.get(project.contentAnalysisJobId);
-    if (cachedAnalysis && (now - cachedAnalysis.timestamp) < DATA_FILE_CACHE_TTL) {
-      console.log(`[Unified Analyzer] ⚡ Content analysis cache HIT (age: ${now - cachedAnalysis.timestamp}ms)`);
-      contentAnalysis = cachedAnalysis.data;
-    } else {
-      console.log(`[Unified Analyzer] 📂 Reading content analysis from disk...`);
-      const analysisPath = path.join(RESULTS_DIR, `${project.contentAnalysisJobId}.json`);
-      if (await fs.pathExists(analysisPath)) {
-        try {
-          const startTime = Date.now();
-          contentAnalysis = await fs.readJson(analysisPath);
-          const readTime = Date.now() - startTime;
-          console.log(`[Unified Analyzer] ✅ Content analysis loaded in ${readTime}ms (${contentAnalysis.results?.length || 0} results)`);
-          
-          // Cache it for future requests
-          contentAnalysisCache.set(project.contentAnalysisJobId, {
-            data: contentAnalysis,
-            timestamp: now
-          });
-        } catch (error) {
-          console.error('[Unified Analyzer] Failed to read content analysis file, skipping', { 
-            path: analysisPath, 
-            error: error.message 
-          });
-          // File is corrupted - continue without content analysis
-          contentAnalysis = null;
+  
+  if (jobIdsToSearch.length > 0) {
+    console.log(`[Unified Analyzer] 📂 Loading content analysis from ${jobIdsToSearch.length} job(s)...`);
+    
+    // Merge results from all job files
+    const allResults = [];
+    
+    for (const jobId of jobIdsToSearch) {
+      // Check content analysis cache first
+      const cachedAnalysis = contentAnalysisCache.get(jobId);
+      let jobAnalysis = null;
+      
+      if (cachedAnalysis && (now - cachedAnalysis.timestamp) < DATA_FILE_CACHE_TTL) {
+        console.log(`[Unified Analyzer] ⚡ Content analysis cache HIT for job ${jobId} (age: ${now - cachedAnalysis.timestamp}ms)`);
+        jobAnalysis = cachedAnalysis.data;
+      } else {
+        console.log(`[Unified Analyzer] 📂 Reading content analysis from disk for job ${jobId}...`);
+        const analysisPath = path.join(RESULTS_DIR, `${jobId}.json`);
+        if (await fs.pathExists(analysisPath)) {
+          try {
+            const startTime = Date.now();
+            jobAnalysis = await fs.readJson(analysisPath);
+            const readTime = Date.now() - startTime;
+            console.log(`[Unified Analyzer] ✅ Job ${jobId} loaded in ${readTime}ms (${jobAnalysis.results?.length || 0} results)`);
+            
+            // Cache it for future requests
+            contentAnalysisCache.set(jobId, {
+              data: jobAnalysis,
+              timestamp: now
+            });
+          } catch (error) {
+            console.error('[Unified Analyzer] Failed to read content analysis file, skipping', { 
+              jobId,
+              path: analysisPath, 
+              error: error.message 
+            });
+          }
         }
       }
+      
+      // Collect results from this job
+      if (jobAnalysis && jobAnalysis.results) {
+        allResults.push(...jobAnalysis.results);
+      }
+    }
+    
+    // Create a merged content analysis object
+    if (allResults.length > 0) {
+      contentAnalysis = {
+        results: allResults,
+        jobIds: jobIdsToSearch,
+        merged: true
+      };
+      console.log(`[Unified Analyzer] ✅ Merged ${allResults.length} total results from ${jobIdsToSearch.length} job(s)`);
     }
   }
   

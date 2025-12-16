@@ -125,38 +125,46 @@ function Home() {
 
       {/* Real-Time Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard
-          icon={CheckCircle}
-          value={activeProjects}
-          label="Active Projects"
-          color="text-green-600"
-          bgColor="bg-green-50"
-          trend={activeProjects > 0 ? '+1' : null}
-        />
-        <StatCard
-          icon={Globe}
-          value={totalUrls}
-          label="URLs Tracked"
-          color="text-blue-600"
-          bgColor="bg-blue-50"
-          trend={totalUrls > 0 ? `${totalUrls} total` : null}
-        />
-        <StatCard
-          icon={TrendingUpIcon}
-          value={`${(avgCitationRate * 100).toFixed(1)}%`}
-          label="Avg Citation Rate"
-          color="text-purple-600"
-          bgColor="bg-purple-50"
-          trend={avgCitationRate > 0.05 ? 'Good' : avgCitationRate > 0 ? 'Fair' : null}
-        />
-        <StatCard
-          icon={Eye}
-          value={hasAnalysisResults ? '✓' : '—'}
-          label="Analysis Status"
-          color="text-orange-600"
-          bgColor="bg-orange-50"
-          trend={hasAnalysisResults ? 'Ready' : 'Pending'}
-        />
+        <div className="stagger-item">
+          <StatCard
+            icon={CheckCircle}
+            value={activeProjects}
+            label="Active Projects"
+            color="text-green-600"
+            bgColor="bg-green-50"
+            trend={activeProjects > 0 ? '+1' : null}
+          />
+        </div>
+        <div className="stagger-item" style={{animationDelay: '0.1s'}}>
+          <StatCard
+            icon={Globe}
+            value={totalUrls}
+            label="URLs Tracked"
+            color="text-blue-600"
+            bgColor="bg-blue-50"
+            trend={totalUrls > 0 ? `${totalUrls} total` : null}
+          />
+        </div>
+        <div className="stagger-item" style={{animationDelay: '0.15s'}}>
+          <StatCard
+            icon={TrendingUpIcon}
+            value={`${(avgCitationRate * 100).toFixed(1)}%`}
+            label="Avg Citation Rate"
+            color="text-purple-600"
+            bgColor="bg-purple-50"
+            trend={avgCitationRate > 0.05 ? 'Good' : avgCitationRate > 0 ? 'Fair' : null}
+          />
+        </div>
+        <div className="stagger-item" style={{animationDelay: '0.2s'}}>
+          <StatCard
+            icon={Eye}
+            value={hasAnalysisResults ? '✓' : '—'}
+            label="Analysis Status"
+            color="text-orange-600"
+            bgColor="bg-orange-50"
+            trend={hasAnalysisResults ? 'Ready' : 'Pending'}
+          />
+        </div>
       </div>
 
       {/* Feature Cards with Status */}
@@ -167,13 +175,14 @@ function Home() {
         </div>
         
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {features.map((feature) => {
+          {features.map((feature, idx) => {
             const Icon = feature.icon
             return (
               <Link 
                 key={feature.title} 
                 to={feature.link}
-                className="group relative bg-white rounded-xl border-2 border-gray-200 hover:border-primary-300 p-6 transition-all duration-300 hover:shadow-xl hover:-translate-y-1"
+                className="group relative bg-white rounded-xl border-2 border-gray-200 hover:border-primary-300 p-6 transition-all duration-300 hover:shadow-xl hover:-translate-y-1 stagger-item"
+                style={{animationDelay: `${idx * 0.1}s`}}
               >
                 {/* Status Badge */}
                 {feature.badge && (
@@ -229,18 +238,18 @@ function Home() {
 // Stat Card Component
 function StatCard({ icon: Icon, value, label, color, bgColor, trend }) {
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-5 hover:shadow-lg transition-all hover-lift">
+    <div className="bg-white rounded-xl border border-gray-200 p-5 hover:shadow-lg transition-all duration-300 hover-lift group">
       <div className="flex items-start justify-between mb-3">
-        <div className={`${bgColor} w-12 h-12 rounded-lg flex items-center justify-center`}>
+        <div className={`${bgColor} w-12 h-12 rounded-lg flex items-center justify-center transition-transform duration-300 group-hover:scale-110`}>
           <Icon className={`w-6 h-6 ${color}`} />
         </div>
         {trend && (
-          <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-full font-medium">
+          <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-full font-medium animate-fade-in">
             {trend}
           </span>
         )}
       </div>
-      <div className={`text-3xl font-bold ${color} mb-1`}>{value}</div>
+      <div className={`text-3xl font-bold ${color} mb-1 transition-all duration-300 group-hover:scale-105`}>{value}</div>
       <div className="text-sm text-gray-600">{label}</div>
     </div>
   )

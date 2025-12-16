@@ -23,20 +23,40 @@ async function generateInsightsForUrl(projectId, url, regenerate = false) {
   logger.info('Generating AI insights for URL', { projectId, url, regenerate });
   
   try {
-    // Load the project to get the content analysis job ID
+    // Load the project to get the content analysis job ID(s)
     const projectPath = path.join(RESULTS_DIR, `unified-${projectId}.json`);
     const project = await fs.readJson(projectPath);
     
-    if (!project.contentAnalysisJobId) {
+    // Support both old single job ID and new multiple job IDs
+    const jobIdsToSearch = project.contentAnalysisJobIds || (project.contentAnalysisJobId ? [project.contentAnalysisJobId] : []);
+    
+    if (jobIdsToSearch.length === 0) {
       throw new Error('No content analysis found for this project');
     }
     
-    // Load the analysis results
-    const analysisPath = path.join(RESULTS_DIR, `${project.contentAnalysisJobId}.json`);
-    const analysisData = await fs.readJson(analysisPath);
+    // Search through all job files to find the URL's analysis
+    let urlAnalysis = null;
+    let analysisPath = null;
+    let analysisData = null;
     
-    // Find the specific URL's analysis
-    const urlAnalysis = analysisData.results.find(r => r.url === url);
+    for (const jobId of jobIdsToSearch) {
+      try {
+        const currentAnalysisPath = path.join(RESULTS_DIR, `${jobId}.json`);
+        if (await fs.pathExists(currentAnalysisPath)) {
+          const currentAnalysisData = await fs.readJson(currentAnalysisPath);
+          const found = currentAnalysisData.results?.find(r => r.url === url);
+          if (found) {
+            urlAnalysis = found;
+            analysisPath = currentAnalysisPath;
+            analysisData = currentAnalysisData;
+            break;
+          }
+        }
+      } catch (err) {
+        logger.warn('Failed to read job file', { jobId, error: err.message });
+      }
+    }
+    
     if (!urlAnalysis) {
       throw new Error(`No analysis found for URL: ${url}`);
     }
@@ -65,14 +85,22 @@ async function generateInsightsForUrl(projectId, url, regenerate = false) {
     urlAnalysis.hasAIInsights = true;
     urlAnalysis.aiInsightsGeneratedAt = new Date().toISOString();
     
+    // Update the URL analysis in the results array
+    const urlIndex = analysisData.results.findIndex(r => r.url === url);
+    if (urlIndex !== -1) {
+      analysisData.results[urlIndex] = urlAnalysis;
+    }
+    
     // Save updated analysis
     await fs.writeJson(analysisPath, analysisData, { spaces: 2 });
     logger.info('Insights generated and saved', { url, insightCount: insights.length });
     
     // Invalidate caches so dashboard shows new insights immediately
     const { invalidateCaches } = require('./unifiedAnalyzer');
-    invalidateCaches(projectId, project.contentAnalysisJobId);
-    logger.info('Caches invalidated for project', { projectId });
+    // Pass all job IDs (supports both single and multiple job IDs)
+    const jobIdsToInvalidate = project.contentAnalysisJobIds || (project.contentAnalysisJobId ? [project.contentAnalysisJobId] : []);
+    invalidateCaches(projectId, jobIdsToInvalidate);
+    logger.info('Caches invalidated for project', { projectId, jobIds: jobIdsToInvalidate });
     
     return {
       insights,

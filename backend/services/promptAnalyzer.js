@@ -218,16 +218,18 @@ function identifyContentOpportunities(themes, targetUrls) {
       theme.prompts.forEach(p => p.weeks.forEach(w => weeksSet.add(w)));
       
       if (weeksSet.size >= 2) {
-        // Calculate potential impact
-        const potentialGain = theme.totalOccurrences * (0.75 - theme.citationRate);
+        // Calculate priority based on volume and performance gap
+        const volumeScore = theme.totalOccurrences;
+        const performanceGap = 1 - theme.citationRate; // How much room for improvement
+        const opportunityScore = volumeScore * performanceGap;
         
         opportunities.push({
           themeName: theme.name,
           funnelStage: theme.funnelStage,
           currentCitationRate: theme.citationRate,
           promptCount: theme.promptCount,
-          potentialGain: Math.round(potentialGain),
-          priority: potentialGain > 20 ? 'high' : potentialGain > 10 ? 'medium' : 'low',
+          totalOccurrences: theme.totalOccurrences,
+          priority: opportunityScore > 50 ? 'high' : opportunityScore > 25 ? 'medium' : 'low',
           samplePrompts: theme.prompts.slice(0, 5).map(p => p.prompt),
           currentlyPerforming: theme.topCitedUrls.slice(0, 3)
         });
@@ -235,7 +237,12 @@ function identifyContentOpportunities(themes, targetUrls) {
     }
   });
   
-  return opportunities.sort((a, b) => b.potentialGain - a.potentialGain);
+  // Sort by opportunity score (volume × performance gap)
+  return opportunities.sort((a, b) => {
+    const scoreA = a.totalOccurrences * (1 - a.currentCitationRate);
+    const scoreB = b.totalOccurrences * (1 - b.currentCitationRate);
+    return scoreB - scoreA;
+  });
 }
 
 /**

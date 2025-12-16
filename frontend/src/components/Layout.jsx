@@ -11,6 +11,7 @@ import {
 } from 'lucide-react'
 import { useAppContext } from '../contexts/AppContext'
 import DataPersistenceIndicator from './DataPersistenceIndicator'
+import ScrollToTop from './ScrollToTop'
 
 function Layout({ children }) {
   const location = useLocation()
@@ -220,13 +221,16 @@ function Layout({ children }) {
               {/* Data Persistence Indicator */}
               <DataPersistenceIndicator />
               
-              {/* Content Container with subtle shadow */}
-              <div className="bg-white/50 rounded-xl backdrop-blur-sm">
+              {/* Content Container with subtle shadow and page transition */}
+              <div className="bg-white/50 rounded-xl backdrop-blur-sm page-enter">
                 {children}
               </div>
             </div>
           </div>
         </main>
+
+        {/* Scroll to Top Button */}
+        <ScrollToTop />
       </div>
     </div>
   )

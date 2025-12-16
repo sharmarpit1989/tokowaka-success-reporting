@@ -98,10 +98,58 @@ function detectStructures(analysis) {
     faqCount: 0,
     hasExamples: false,
     exampleCount: 0,
-    hasComparisons: false
+    hasComparisons: false,
+    // ✨ NEW: Add LLM visibility metrics for better validation
+    llmMetrics: {
+      overallScore: analysis.llmPresence?.overallScore || 0,
+      freshness: analysis.llmPresence?.freshness || 0,
+      answerability: analysis.llmPresence?.answerability || 0,
+      authority: analysis.llmPresence?.authority || 0,
+      structure: analysis.llmPresence?.structure || 0,
+      queryAlignment: analysis.llmPresence?.queryAlignment || 0
+    },
+    pageType: analysis.llmPresence?.pageType || 'Unknown'
   };
   
-  // Check recommendations for structure indicators
+  // Check details object for actual structure counts
+  if (analysis.details?.structure) {
+    const structDetails = analysis.details.structure;
+    
+    // Tables
+    if (structDetails.tableCount > 0) {
+      structures.hasTables = true;
+      structures.tableCount = structDetails.tableCount;
+    }
+    
+    // Lists
+    if (structDetails.listCount > 0) {
+      structures.hasLists = true;
+      structures.listCount = structDetails.listCount;
+    }
+    
+    // Headings suggest structure
+    if (structDetails.h2Count > 0 || structDetails.h3Count > 0) {
+      structures.hasLists = true; // Well-structured content
+      structures.listCount = Math.max(structures.listCount, 1);
+    }
+  }
+  
+  // Check answerability details for FAQ indicators
+  if (analysis.details?.answerability) {
+    const answerDetails = analysis.details.answerability;
+    
+    if (answerDetails.questionHeadingCount > 0) {
+      structures.hasFAQs = true;
+      structures.faqCount = answerDetails.questionHeadingCount;
+    }
+    
+    if (answerDetails.directAnswerSections > 0) {
+      structures.hasFAQs = true;
+      structures.faqCount = Math.max(structures.faqCount, answerDetails.directAnswerSections);
+    }
+  }
+  
+  // Check recommendations for structure indicators (what's MISSING)
   if (analysis.recommendations && Array.isArray(analysis.recommendations)) {
     analysis.recommendations.forEach(rec => {
       const recText = JSON.stringify(rec).toLowerCase();
@@ -109,15 +157,19 @@ function detectStructures(analysis) {
       // If AI recommendations suggest adding tables/lists, it means they don't exist
       if (recText.includes('add') && recText.includes('table')) {
         structures.hasTables = false; // Explicitly doesn't have it
+        structures.tableCount = 0;
       }
       if (recText.includes('add') && recText.includes('list')) {
         structures.hasLists = false;
+        structures.listCount = 0;
       }
       if (recText.includes('add') && recText.includes('faq')) {
         structures.hasFAQs = false;
+        structures.faqCount = 0;
       }
       if (recText.includes('add') && recText.includes('example')) {
         structures.hasExamples = false;
+        structures.exampleCount = 0;
       }
     });
   }
@@ -131,22 +183,27 @@ function detectStructures(analysis) {
       structures.hasComparisons = true;
     }
     
-    // Count question types as FAQ indicators
-    const allPrompts = [...awareness, ...consideration, ...conversion];
-    structures.faqCount = allPrompts.length;
-    structures.hasFAQs = structures.faqCount >= 3;
+    // Count question types as FAQ indicators (if not already counted)
+    if (structures.faqCount === 0) {
+      const allPrompts = [...awareness, ...consideration, ...conversion];
+      structures.faqCount = allPrompts.length;
+      structures.hasFAQs = structures.faqCount >= 3;
+    }
   }
   
-  // Check LLM presence scores - high structure score suggests good formatting
-  if (analysis.llmPresence?.structure >= 0.7) {
-    structures.hasLists = true;
-    structures.listCount = 2; // Estimate
-  }
-  
-  // Check answerability - high score suggests FAQ-like content
-  if (analysis.llmPresence?.answerability >= 0.7) {
-    structures.hasFAQs = true;
-    structures.faqCount = Math.max(structures.faqCount, 3);
+  // Use LLM presence scores as fallback indicators
+  if (analysis.llmPresence) {
+    // High structure score suggests good formatting
+    if (analysis.llmPresence.structure >= 0.7 && !structures.hasLists) {
+      structures.hasLists = true;
+      structures.listCount = Math.max(structures.listCount, 2); // Estimate
+    }
+    
+    // High answerability suggests FAQ-like content
+    if (analysis.llmPresence.answerability >= 0.7 && !structures.hasFAQs) {
+      structures.hasFAQs = true;
+      structures.faqCount = Math.max(structures.faqCount, 3);
+    }
   }
   
   return structures;
@@ -157,12 +214,82 @@ function detectStructures(analysis) {
  */
 function validateSingleRecommendation(recommendation, inventory, allUrls) {
   const contentStructure = recommendation.contentStructure || {};
+  const metricFocus = recommendation.metricFocus || 'general';
+  const targetUrls = recommendation.targetUrls || [];
   
   let existingUrls = [];
   let hasAll = true;
   let hasPartial = false;
   let missingElements = [];
   
+  // ✨ NEW: If recommendation specifies target URLs, validate those specifically
+  if (targetUrls.length > 0) {
+    // This is a recommendation to improve specific existing pages
+    targetUrls.forEach(targetUrl => {
+      const structures = inventory.structureByUrl.get(targetUrl);
+      if (structures) {
+        existingUrls.push(targetUrl);
+        
+        // Check if the page has low LLM scores that need improvement
+        const metrics = structures.llmMetrics;
+        const focusMetricScore = metrics[metricFocus] || metrics.overallScore;
+        
+        if (focusMetricScore < 0.6) {
+          hasPartial = true; // Exists but needs improvement
+          
+          // Identify what's missing based on metric focus
+          if (metricFocus === 'structure' && !structures.hasLists) {
+            missingElements.push('structured lists and headings');
+          }
+          if (metricFocus === 'answerability' && !structures.hasFAQs) {
+            missingElements.push('FAQ section');
+          }
+          if (metricFocus === 'freshness') {
+            missingElements.push('updated dates and current information');
+          }
+          if (metricFocus === 'authority') {
+            missingElements.push('credibility signals and expert content');
+          }
+        }
+      }
+    });
+    
+    if (existingUrls.length > 0) {
+      // Determine status based on LLM metrics
+      const avgScore = existingUrls.reduce((sum, url) => {
+        const structures = inventory.structureByUrl.get(url);
+        return sum + (structures?.llmMetrics?.overallScore || 0);
+      }, 0) / existingUrls.length;
+      
+      if (avgScore >= 0.7) {
+        return {
+          status: 'exists',
+          existingUrls: existingUrls.slice(0, 3),
+          message: `✅ Target pages exist with good LLM visibility (${(avgScore * 100).toFixed(0)}%). Minor optimizations recommended.`,
+          actionType: 'optimize',
+          llmScore: avgScore
+        };
+      } else if (avgScore >= 0.4) {
+        return {
+          status: 'partial',
+          existingUrls: existingUrls.slice(0, 3),
+          message: `⚠️ Target pages exist but have low LLM visibility (${(avgScore * 100).toFixed(0)}%). ${missingElements.length > 0 ? `Missing: ${missingElements.join(', ')}.` : 'Needs optimization.'}`,
+          actionType: 'expand',
+          llmScore: avgScore
+        };
+      } else {
+        return {
+          status: 'missing',
+          existingUrls: existingUrls.slice(0, 3),
+          message: `❌ Target pages have very low LLM visibility (${(avgScore * 100).toFixed(0)}%). Significant improvements needed: ${missingElements.join(', ') || 'comprehensive content overhaul'}.`,
+          actionType: 'create',
+          llmScore: avgScore
+        };
+      }
+    }
+  }
+  
+  // Original validation logic for general recommendations (no specific target URLs)
   // Check each recommended structure element
   if (contentStructure.tables > 0) {
     const urlsWithTables = inventory.urlsWithTables;
@@ -230,17 +357,31 @@ function validateSingleRecommendation(recommendation, inventory, allUrls) {
   // Remove duplicates
   existingUrls = [...new Set(existingUrls)];
   
+  // ✨ NEW: Calculate average LLM score for existing URLs
+  let avgLLMScore = null;
+  if (existingUrls.length > 0) {
+    const scores = existingUrls
+      .map(url => inventory.structureByUrl.get(url)?.llmMetrics?.overallScore)
+      .filter(s => s != null);
+    
+    if (scores.length > 0) {
+      avgLLMScore = scores.reduce((sum, s) => sum + s, 0) / scores.length;
+    }
+  }
+  
   // Determine status and message
   let status, message, actionType;
   
   if (hasAll && existingUrls.length > 0) {
     status = 'exists';
     actionType = 'optimize';
-    message = `✅ You already have this content structure on ${existingUrls.length} page(s), but it's not getting cited effectively. Focus on optimizing these pages.`;
+    const scoreText = avgLLMScore ? ` (avg LLM score: ${(avgLLMScore * 100).toFixed(0)}%)` : '';
+    message = `✅ You already have this content structure on ${existingUrls.length} page(s)${scoreText}, but it's not getting cited effectively. Focus on optimizing these pages.`;
   } else if (hasPartial && existingUrls.length > 0) {
     status = 'partial';
     actionType = 'expand';
-    message = `⚠️ You have partial content on ${existingUrls.length} page(s). Missing: ${missingElements.join(', ')}. Expand existing pages or create new comprehensive content.`;
+    const scoreText = avgLLMScore ? ` (avg LLM score: ${(avgLLMScore * 100).toFixed(0)}%)` : '';
+    message = `⚠️ You have partial content on ${existingUrls.length} page(s)${scoreText}. Missing: ${missingElements.join(', ')}. Expand existing pages or create new comprehensive content.`;
   } else {
     status = 'missing';
     actionType = 'create';
@@ -261,7 +402,8 @@ function validateSingleRecommendation(recommendation, inventory, allUrls) {
     status,
     existingUrls: existingUrls.slice(0, 3), // Limit to top 3
     message,
-    actionType
+    actionType,
+    llmScore: avgLLMScore
   };
 }
 

@@ -9,18 +9,25 @@ const logger = createServiceLogger('ContentOpportunityAI');
 
 /**
  * Generate AI recommendations for content opportunities
+ * @param {Object} promptAnalysis - Prompt pattern analysis data
+ * @param {Object} contentPatterns - High/low performing content patterns
+ * @param {Array} targetUrls - List of target URLs being tracked
+ * @param {Array} urlAnalysisData - Optional URL-level analysis data from AI Visibility dashboard
  */
-async function generateContentRecommendations(promptAnalysis, contentPatterns, targetUrls) {
-  logger.info('Generating AI content recommendations');
+async function generateContentRecommendations(promptAnalysis, contentPatterns, targetUrls, urlAnalysisData = null) {
+  logger.info('Generating AI content recommendations', { 
+    hasUrlAnalysis: !!urlAnalysisData,
+    analyzedUrls: urlAnalysisData?.length || 0
+  });
   
   // If Azure OpenAI is not configured, return structured recommendations
   if (!config.azure.isEnabled) {
     logger.warn('Azure OpenAI not configured, returning structured recommendations');
-    return generateFallbackRecommendations(promptAnalysis, contentPatterns);
+    return generateFallbackRecommendations(promptAnalysis, contentPatterns, urlAnalysisData);
   }
   
   try {
-    const prompt = buildPrompt(promptAnalysis, contentPatterns, targetUrls);
+    const prompt = buildPrompt(promptAnalysis, contentPatterns, targetUrls, urlAnalysisData);
     const recommendations = await callAzureOpenAI(prompt);
     
     return {
@@ -32,14 +39,14 @@ async function generateContentRecommendations(promptAnalysis, contentPatterns, t
   } catch (error) {
     logger.error('Error generating AI recommendations:', error);
     // Fall back to structured recommendations
-    return generateFallbackRecommendations(promptAnalysis, contentPatterns);
+    return generateFallbackRecommendations(promptAnalysis, contentPatterns, urlAnalysisData);
   }
 }
 
 /**
  * Build prompt for Azure OpenAI
  */
-function buildPrompt(promptAnalysis, contentPatterns, targetUrls) {
+function buildPrompt(promptAnalysis, contentPatterns, targetUrls, urlAnalysisData = null) {
   const opportunities = promptAnalysis.opportunities || [];
   const themes = promptAnalysis.themes || [];
   const domain = targetUrls.length > 0 ? extractDomain(targetUrls[0]) : 'your website';
@@ -50,6 +57,7 @@ function buildPrompt(promptAnalysis, contentPatterns, targetUrls) {
 
 **Domain:** ${domain}
 **Target URLs Being Tracked:** ${targetUrls.length}
+**URLs with AI Visibility Analysis:** ${urlAnalysisData?.length || 0}
 **Total Unique Prompts Analyzed:** ${promptAnalysis.totalUniquePrompts}
 **Themes Identified:** ${themes.length}
 
@@ -69,6 +77,91 @@ function buildPrompt(promptAnalysis, contentPatterns, targetUrls) {
 `;
   });
   
+  // ✨ NEW: Add URL-level analysis insights if available
+  if (urlAnalysisData && urlAnalysisData.length > 0) {
+    prompt += `
+
+## URL-LEVEL AI VISIBILITY ANALYSIS
+
+We analyzed ${urlAnalysisData.length} URLs for LLM visibility. Here are key insights:
+
+`;
+    
+    // Calculate aggregate statistics
+    const avgLLMScore = calculateAverage(urlAnalysisData.map(u => u.contentAnalysis?.llmPresence?.overallScore));
+    const avgFreshness = calculateAverage(urlAnalysisData.map(u => u.contentAnalysis?.llmPresence?.freshness));
+    const avgAnswerability = calculateAverage(urlAnalysisData.map(u => u.contentAnalysis?.llmPresence?.answerability));
+    const avgAuthority = calculateAverage(urlAnalysisData.map(u => u.contentAnalysis?.llmPresence?.authority));
+    const avgStructure = calculateAverage(urlAnalysisData.map(u => u.contentAnalysis?.llmPresence?.structure));
+    
+    prompt += `
+**Overall Metrics (Your Current Content):**
+- Average LLM Presence Score: ${(avgLLMScore * 100).toFixed(1)}%
+- Average Freshness Score: ${(avgFreshness * 100).toFixed(1)}%
+- Average Answerability Score: ${(avgAnswerability * 100).toFixed(1)}%
+- Average Authority Score: ${(avgAuthority * 100).toFixed(1)}%
+- Average Structure Score: ${(avgStructure * 100).toFixed(1)}%
+
+`;
+    
+    // Identify weak areas
+    const weaknesses = [];
+    if (avgFreshness < 0.6) weaknesses.push('Freshness (outdated content)');
+    if (avgAnswerability < 0.6) weaknesses.push('Answerability (lacks direct answers)');
+    if (avgAuthority < 0.6) weaknesses.push('Authority (needs more credibility signals)');
+    if (avgStructure < 0.6) weaknesses.push('Structure (poor formatting for LLMs)');
+    
+    if (weaknesses.length > 0) {
+      prompt += `**⚠️ Key Weaknesses Detected:** ${weaknesses.join(', ')}\n\n`;
+    }
+    
+    // Group URLs by page type
+    const pageTypeGroups = {};
+    urlAnalysisData.forEach(u => {
+      const pageType = u.contentAnalysis?.llmPresence?.pageType || 'Unknown';
+      if (!pageTypeGroups[pageType]) pageTypeGroups[pageType] = [];
+      pageTypeGroups[pageType].push(u);
+    });
+    
+    prompt += `**Page Types on Your Site:**\n`;
+    Object.entries(pageTypeGroups).forEach(([type, urls]) => {
+      const avgScore = calculateAverage(urls.map(u => u.contentAnalysis?.llmPresence?.overallScore));
+      prompt += `- ${type}: ${urls.length} pages (avg score: ${(avgScore * 100).toFixed(1)}%)\n`;
+    });
+    
+    prompt += `\n`;
+    
+    // Show top and bottom performers
+    const sortedUrls = [...urlAnalysisData]
+      .filter(u => u.contentAnalysis?.llmPresence?.overallScore != null)
+      .sort((a, b) => b.contentAnalysis.llmPresence.overallScore - a.contentAnalysis.llmPresence.overallScore);
+    
+    if (sortedUrls.length > 0) {
+      prompt += `**Top Performing Pages (LLM Visibility):**\n`;
+      sortedUrls.slice(0, 3).forEach((u, i) => {
+        const score = u.contentAnalysis.llmPresence.overallScore;
+        const pageType = u.contentAnalysis.llmPresence.pageType;
+        prompt += `${i + 1}. ${u.url} (${(score * 100).toFixed(1)}%, ${pageType})\n`;
+      });
+      
+      prompt += `\n**Lowest Performing Pages (Need Improvement):**\n`;
+      sortedUrls.slice(-3).reverse().forEach((u, i) => {
+        const score = u.contentAnalysis.llmPresence.overallScore;
+        const pageType = u.contentAnalysis.llmPresence.pageType;
+        const llm = u.contentAnalysis.llmPresence;
+        const weakMetrics = [];
+        if (llm.freshness < 0.5) weakMetrics.push('freshness');
+        if (llm.answerability < 0.5) weakMetrics.push('answerability');
+        if (llm.authority < 0.5) weakMetrics.push('authority');
+        if (llm.structure < 0.5) weakMetrics.push('structure');
+        
+        prompt += `${i + 1}. ${u.url} (${(score * 100).toFixed(1)}%, ${pageType}) - Weak: ${weakMetrics.join(', ') || 'overall optimization needed'}\n`;
+      });
+      
+      prompt += `\n`;
+    }
+  }
+  
   prompt += `
 
 ## CONTENT OPPORTUNITY GAPS
@@ -80,7 +173,7 @@ function buildPrompt(promptAnalysis, contentPatterns, targetUrls) {
 ### Opportunity ${idx + 1}: ${opp.themeName}
 - **Current Citation Rate:** ${(opp.currentCitationRate * 100).toFixed(1)}%
 - **Prompt Count:** ${opp.promptCount}
-- **Potential Weekly Citations Gain:** ${opp.potentialGain}
+- **Weekly Occurrences:** ${opp.totalOccurrences}
 - **Funnel Stage:** ${opp.funnelStage}
 - **Sample Prompts:** ${opp.samplePrompts.slice(0, 2).join('; ')}
 `;
@@ -110,7 +203,8 @@ Generate 5-7 actionable content recommendations. Each recommendation should:
 2. **Reference the data** - Mention which theme/prompts this addresses
 3. **Include structural details** - Specify content elements (e.g., "3 comparison tables", "5-step guide")
 4. **Be funnel-aware** - Explain how this matches user intent at a specific funnel stage
-5. **Show impact** - Reference potential citation gains
+${urlAnalysisData && urlAnalysisData.length > 0 ? `5. **Use URL analysis insights** - Reference specific pages that need improvement or can be expanded
+6. **Address metric weaknesses** - Target low-scoring metrics (freshness, answerability, authority, structure)` : ''}
 
 ## CRITICAL RULES
 
@@ -119,8 +213,12 @@ Generate 5-7 actionable content recommendations. Each recommendation should:
 - Reference specific prompt examples from the data
 - Include concrete content structure suggestions (lists, tables, steps, FAQs)
 - Explain WHY the structure works (e.g., "LLMs cite structured comparisons 40% more often")
-- Prioritize opportunities with high potential gain
+- Prioritize opportunities with high volume and low citation rates
 - Make recommendations specific to the theme and funnel stage
+${urlAnalysisData && urlAnalysisData.length > 0 ? `- If URL analysis data is available, mention SPECIFIC URLS that should be improved or created
+- Prioritize fixing pages with low LLM visibility scores (< 60%)
+- Address the weakest metrics first (freshness, answerability, authority, structure)
+- Suggest content updates for existing low-performing pages before recommending new pages` : ''}
 
 ## OUTPUT FORMAT
 
@@ -144,10 +242,21 @@ Return a JSON array of recommendation objects:
       "Specific action 3 with details"
     ],
     "funnelInsight": "Explain what audience expects at this funnel stage",
-    "potentialImpact": "Estimated citation gain or improvement",
-    "priority": "high" | "medium" | "low"
+    "priority": "high" | "medium" | "low"${urlAnalysisData && urlAnalysisData.length > 0 ? `,
+    "targetUrls": ["url1", "url2"],
+    "metricFocus": "freshness" | "answerability" | "authority" | "structure" | "general"` : ''}
   }
 ]
+
+${urlAnalysisData && urlAnalysisData.length > 0 ? `
+**Note on targetUrls field:** 
+- If recommending improvements to EXISTING pages, list 1-3 specific URLs from the analysis
+- If recommending NEW content creation, set targetUrls to [] (empty array)
+- Prioritize improving existing low-scoring pages before creating new ones
+
+**Note on metricFocus field:**
+- Specify which LLM visibility metric this recommendation primarily addresses
+- Use this to ensure recommendations target the weakest areas` : ''}
 
 Return ONLY valid JSON, no other text.`;
 
@@ -214,21 +323,47 @@ async function callAzureOpenAI(prompt) {
 /**
  * Generate fallback recommendations without AI
  */
-function generateFallbackRecommendations(promptAnalysis, contentPatterns) {
+function generateFallbackRecommendations(promptAnalysis, contentPatterns, urlAnalysisData = null) {
   const recommendations = [];
   const opportunities = promptAnalysis.opportunities || [];
+  
+  // Add URL-based recommendations if analysis data is available
+  if (urlAnalysisData && urlAnalysisData.length > 0) {
+    const lowPerformers = urlAnalysisData
+      .filter(u => u.contentAnalysis?.llmPresence?.overallScore < 0.6)
+      .sort((a, b) => a.contentAnalysis.llmPresence.overallScore - b.contentAnalysis.llmPresence.overallScore)
+      .slice(0, 3);
+    
+    lowPerformers.forEach(urlData => {
+      const llm = urlData.contentAnalysis.llmPresence;
+      const weakestMetric = getWeakestMetric(llm);
+      
+      recommendations.push({
+        title: `Improve ${weakestMetric.name} on Low-Performing Page`,
+        theme: 'URL Optimization',
+        description: `This page has a low LLM visibility score of ${(llm.overallScore * 100).toFixed(1)}%, primarily due to weak ${weakestMetric.name.toLowerCase()} (${(weakestMetric.score * 100).toFixed(1)}%).`,
+        contentStructure: guessContentStructure('consideration'),
+        actions: generateMetricActions(weakestMetric.key, urlData.url),
+        funnelInsight: `Focus on improving ${weakestMetric.name.toLowerCase()} to boost LLM citation potential`,
+        priority: 'high',
+        targetUrls: [urlData.url],
+        metricFocus: weakestMetric.key
+      });
+    });
+  }
   
   // Add top opportunities as recommendations
   opportunities.slice(0, 5).forEach(opp => {
     recommendations.push({
       title: `Improve Content for "${opp.themeName}" Theme`,
       theme: opp.themeName,
-      description: `Your citation rate for ${opp.promptCount} prompts in this theme is ${(opp.currentCitationRate * 100).toFixed(1)}%. By creating structured, comprehensive content, you could gain approximately ${opp.potentialGain} additional citations per week.`,
+      description: `Your citation rate for ${opp.promptCount} prompts in this theme is ${(opp.currentCitationRate * 100).toFixed(1)}%. This represents a content gap opportunity with ${opp.totalOccurrences} weekly prompt occurrences.`,
       contentStructure: guessContentStructure(opp.funnelStage),
       actions: generateGenericActions(opp.themeName, opp.funnelStage),
       funnelInsight: getFunnelInsight(opp.funnelStage),
-      potentialImpact: `+${opp.potentialGain} citations/week`,
-      priority: opp.priority
+      priority: opp.priority,
+      targetUrls: [],
+      metricFocus: 'general'
     });
   });
   
@@ -242,8 +377,9 @@ function generateFallbackRecommendations(promptAnalysis, contentPatterns) {
         contentStructure: {},
         actions: rec.actions || [],
         funnelInsight: rec.impact || '',
-        potentialImpact: rec.impact || 'Improves overall citation rate',
-        priority: rec.priority
+        priority: rec.priority,
+        targetUrls: [],
+        metricFocus: 'structure'
       });
     });
   }
@@ -254,6 +390,56 @@ function generateFallbackRecommendations(promptAnalysis, contentPatterns) {
     generatedAt: new Date().toISOString(),
     note: 'These are structured recommendations. Configure Azure OpenAI for AI-generated insights.'
   };
+}
+
+/**
+ * Get the weakest metric from LLM presence scores
+ */
+function getWeakestMetric(llmPresence) {
+  const metrics = [
+    { key: 'freshness', name: 'Freshness', score: llmPresence.freshness || 0 },
+    { key: 'answerability', name: 'Answerability', score: llmPresence.answerability || 0 },
+    { key: 'authority', name: 'Authority', score: llmPresence.authority || 0 },
+    { key: 'structure', name: 'Structure', score: llmPresence.structure || 0 }
+  ];
+  
+  return metrics.reduce((weakest, current) => 
+    current.score < weakest.score ? current : weakest
+  );
+}
+
+/**
+ * Generate actions based on which metric needs improvement
+ */
+function generateMetricActions(metricKey, url) {
+  const actions = {
+    freshness: [
+      'Add clear publication date and last-updated date to the page',
+      'Update content with current year statistics and examples',
+      'Add a "Last Updated" section showing recent changes'
+    ],
+    answerability: [
+      'Add a comprehensive FAQ section with 8-10 common questions',
+      'Restructure content to directly answer "how", "what", and "why" questions',
+      'Add clear, concise answers in the first paragraph of each section'
+    ],
+    authority: [
+      'Add author credentials and expert quotes',
+      'Include citations to authoritative sources',
+      'Add case studies or real-world examples to demonstrate expertise'
+    ],
+    structure: [
+      'Add numbered or bulleted lists for key points',
+      'Create comparison tables for complex information',
+      'Use clear H2/H3 headings to organize content hierarchically'
+    ]
+  };
+  
+  return actions[metricKey] || [
+    `Review and optimize ${url}`,
+    'Improve content quality and structure',
+    'Add more detailed, actionable information'
+  ];
 }
 
 /**
@@ -312,6 +498,15 @@ function getFunnelInsight(funnelStage) {
   };
   
   return insights[funnelStage] || 'Tailor content to match user intent at this stage.';
+}
+
+/**
+ * Helper: Calculate average of numeric values
+ */
+function calculateAverage(values) {
+  const validValues = values.filter(v => v != null && !isNaN(v) && isFinite(v));
+  if (validValues.length === 0) return 0;
+  return validValues.reduce((sum, v) => sum + v, 0) / validValues.length;
 }
 
 /**

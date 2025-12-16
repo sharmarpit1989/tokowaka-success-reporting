@@ -378,6 +378,14 @@ router.post('/:projectId/content-opportunities', async (req, res) => {
 
     console.log('[Content Opportunities] Generating fresh analysis...');
 
+    // ⚡ If regenerating, invalidate dashboard cache to pick up newly analyzed URLs
+    if (regenerate) {
+      const { invalidateCaches } = require('../services/unifiedAnalyzer');
+      const jobIds = project.contentAnalysisJobIds || (project.contentAnalysisJobId ? [project.contentAnalysisJobId] : []);
+      invalidateCaches(projectId, jobIds);
+      console.log('[Content Opportunities] 🗑️ Invalidated caches for regeneration');
+    }
+
     // Load citation results using citationJobId
     const resultsPath = path.join(config.storage.resultsDir, `${project.citationJobId}-citations.json`);
     
@@ -428,58 +436,71 @@ router.post('/:projectId/content-opportunities', async (req, res) => {
 
     console.log('[Content Opportunities] Content pattern analysis complete');
 
-    // Step 3: Generate AI recommendations
+    // Step 3: Load dashboard data for URL analysis insights
+    const { getUnifiedDashboard } = require('../services/unifiedAnalyzer');
+    let dashboard = null;
+    let urlAnalysisData = null;
+    
+    try {
+      // Log what job IDs we're working with
+      const jobIds = project.contentAnalysisJobIds || (project.contentAnalysisJobId ? [project.contentAnalysisJobId] : []);
+      console.log('[Content Opportunities] Project has job IDs:', jobIds);
+      
+      dashboard = await getUnifiedDashboard(projectId);
+      
+      // Extract URLs with content analysis for AI recommendations
+      if (dashboard && dashboard.urls) {
+        urlAnalysisData = dashboard.urls.filter(u => u.hasContentAnalysis && u.contentAnalysis);
+        
+        console.log('[Content Opportunities] Loaded URL analysis data:', {
+          totalUrls: dashboard.urls.length,
+          analyzedUrls: urlAnalysisData.length,
+          urlsWithAnalysis: urlAnalysisData.map(u => u.url)
+        });
+      }
+    } catch (error) {
+      console.warn('[Content Opportunities] Could not load dashboard for URL analysis:', error.message);
+    }
+
+    // Step 4: Generate AI recommendations (now with URL analysis insights)
     const { generateContentRecommendations } = require('../services/contentOpportunityAI');
     const aiRecommendations = await generateContentRecommendations(
       promptAnalysis,
       contentPatterns,
-      citationResults.targetUrls || []
+      citationResults.targetUrls || [],
+      urlAnalysisData // ✨ NEW: Pass URL analysis data
     );
 
     console.log('[Content Opportunities] AI recommendations generated:', {
       count: aiRecommendations.recommendations?.length || 0,
-      isAI: aiRecommendations.isAIGenerated
+      isAI: aiRecommendations.isAIGenerated,
+      usedUrlAnalysis: !!urlAnalysisData && urlAnalysisData.length > 0
     });
 
-    // Step 4: Validate recommendations against existing website content
-    const { getUnifiedDashboard } = require('../services/unifiedAnalyzer');
-    let dashboard = null;
-    try {
-      dashboard = await getUnifiedDashboard(projectId);
-    } catch (error) {
-      console.warn('[Content Opportunities] Could not load dashboard for validation:', error.message);
-    }
-
+    // Step 5: Validate recommendations against existing website content
     let validatedRecommendations = aiRecommendations.recommendations;
-    let analyzedCount = 0;
-    let totalUrls = 0;
+    let analyzedCount = urlAnalysisData?.length || 0;
+    let totalUrls = dashboard?.urls?.length || 0;
     let validationEnabled = false;
     
-    if (dashboard && dashboard.urls) {
+    if (urlAnalysisData && urlAnalysisData.length > 0) {
       const { validateRecommendations } = require('../services/websiteStructureValidator');
       
-      // Get analyzed URLs (ones with content analysis data)
-      const analyzedUrls = dashboard.urls.filter(u => u.hasContentAnalysis && u.contentAnalysis);
-      totalUrls = dashboard.urls.length;
-      analyzedCount = analyzedUrls.length;
-      
-      console.log('[Content Opportunities] Validating against website:', {
+      console.log('[Content Opportunities] Validating recommendations against website structure:', {
         totalUrls,
         analyzedUrls: analyzedCount
       });
       
-      if (analyzedUrls.length > 0) {
-        validatedRecommendations = validateRecommendations(
-          aiRecommendations.recommendations,
-          analyzedUrls,
-          dashboard.urls
-        );
-        validationEnabled = true;
-        
-        console.log('[Content Opportunities] Validation complete');
-      } else {
-        console.log('[Content Opportunities] No analyzed URLs available for validation');
-      }
+      validatedRecommendations = validateRecommendations(
+        aiRecommendations.recommendations,
+        urlAnalysisData,
+        dashboard.urls
+      );
+      validationEnabled = true;
+      
+      console.log('[Content Opportunities] Validation complete');
+    } else {
+      console.log('[Content Opportunities] No analyzed URLs available for validation');
     }
 
     // Prepare response data

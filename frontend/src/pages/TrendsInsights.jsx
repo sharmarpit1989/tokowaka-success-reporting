@@ -8,11 +8,13 @@ function TrendsInsights() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="bg-gradient-to-r from-purple-50 to-blue-50 rounded-xl p-6 shadow-sm">
+      <div className="bg-gradient-to-r from-purple-50 to-blue-50 rounded-xl p-6 shadow-sm animate-fade-in hover:shadow-md transition-shadow duration-300">
         <div className="flex items-start justify-between">
           <div>
             <h1 className="text-3xl font-bold text-gray-900 mb-2 flex items-center gap-3">
-              <TrendingUp className="w-8 h-8 text-purple-600" />
+              <div className="animate-scale-in">
+                <TrendingUp className="w-8 h-8 text-purple-600" />
+              </div>
               Trends & Insights
             </h1>
             <p className="text-gray-600 max-w-3xl">
@@ -46,7 +48,7 @@ function TrendsInsights() {
       )}
 
       {/* Info Box */}
-      <div className="bg-gradient-to-r from-yellow-50 to-orange-50 border border-yellow-200 rounded-lg p-6">
+      <div className="bg-gradient-to-r from-yellow-50 to-orange-50 border border-yellow-200 rounded-lg p-6 hover:shadow-md transition-all duration-300 stagger-item">
         <h3 className="font-bold text-yellow-900 mb-3 flex items-center gap-2">
           <Info className="w-5 h-5" />
           About Trends & Insights
@@ -56,13 +58,13 @@ function TrendsInsights() {
             This dashboard uses advanced analysis to help you discover content gaps and optimization opportunities:
           </p>
           <ul className="list-disc list-inside space-y-2 ml-4">
-            <li><strong>Thematic Analysis:</strong> Groups prompts into themes (Pricing, Features, Comparisons, etc.)</li>
-            <li><strong>Content Opportunities:</strong> Identifies themes with low citation rates but high prompt volume</li>
-            <li><strong>Pattern Analysis:</strong> Compares high-performing vs low-performing content structures</li>
-            <li><strong>AI Recommendations:</strong> Get specific, actionable suggestions powered by Azure OpenAI</li>
-            <li><strong>Potential Impact:</strong> See estimated citation gains for each opportunity</li>
+            <li className="stagger-item"><strong>Thematic Analysis:</strong> Groups prompts into themes (Pricing, Features, Comparisons, etc.)</li>
+            <li className="stagger-item" style={{animationDelay: '0.1s'}}><strong>Content Opportunities:</strong> Identifies themes with low citation rates but high prompt volume</li>
+            <li className="stagger-item" style={{animationDelay: '0.15s'}}><strong>Pattern Analysis:</strong> Compares high-performing vs low-performing content structures</li>
+            <li className="stagger-item" style={{animationDelay: '0.2s'}}><strong>AI Recommendations:</strong> Get specific, actionable suggestions powered by Azure OpenAI</li>
+            <li className="stagger-item" style={{animationDelay: '0.25s'}}><strong>Opportunity Sizing:</strong> See volume and performance gaps for each theme</li>
           </ul>
-          <p className="mt-4 text-sm">
+          <p className="mt-4 text-sm animate-fade-in">
             💡 <strong>Tip:</strong> Focus on opportunities marked "HIGH" priority for maximum impact on your citation rates.
           </p>
         </div>
