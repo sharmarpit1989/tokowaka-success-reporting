@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Analyze This URL</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 20px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .header {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .url-card {
+            background: white;
+            padding: 20px;
+            margin-bottom: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .url-title {
+            font-size: 16px;
+            color: #2563eb;
+            margin-bottom: 10px;
+            word-break: break-all;
+        }
+        .analyze-btn {
+            background: #2563eb;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .analyze-btn:hover {
+            background: #1d4ed8;
+        }
+        .analyze-btn:disabled {
+            background: #9ca3af;
+            cursor: not-allowed;
+        }
+        .status {
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            margin-left: 10px;
+        }
+        .status.analyzing {
+            background: #fef3c7;
+            color: #92400e;
+        }
+        .status.completed {
+            background: #d1fae5;
+            color: #065f46;
+        }
+        .results {
+            margin-top: 15px;
+            padding: 15px;
+            background: #f0f9ff;
+            border-left: 4px solid #2563eb;
+            border-radius: 4px;
+            display: none;
+        }
+        .results.show {
+            display: block;
+        }
+        .score {
+            font-size: 32px;
+            font-weight: bold;
+            color: #2563eb;
+        }
+        .rating {
+            font-size: 18px;
+            color: #64748b;
+        }
+        .progress {
+            margin-top: 10px;
+            font-size: 14px;
+            color: #64748b;
+        }
+        .loading {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #2563eb;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🎯 Lovesac.com - AI Visibility Dashboard</h1>
+        <p><strong>Project ID:</strong> 9936982a-d3ad-48af-9f89-b6c4980b7b1f</p>
+        <p><strong>Total URLs:</strong> <span id="urlCount">Loading...</span></p>
+        <p><strong>Status:</strong> <span id="projectStatus">Loading...</span></p>
+    </div>
+
+    <div id="urlsContainer">
+        <p>Loading URLs...</p>
+    </div>
+
+    <script>
+        const projectId = '9936982a-d3ad-48af-9f89-b6c4980b7b1f';
+        const apiBase = 'http://localhost:3000/api/unified';
+
+        // Load dashboard
+        async function loadDashboard() {
+            try {
+                const response = await fetch(`${apiBase}/${projectId}/dashboard`);
+                const data = await response.json();
+                
+                document.getElementById('urlCount').textContent = data.urlCount;
+                document.getElementById('projectStatus').textContent = data.status;
+                
+                // Display URLs
+                const container = document.getElementById('urlsContainer');
+                container.innerHTML = '';
+                
+                data.urls.slice(0, 5).forEach((urlData, index) => {
+                    const card = createUrlCard(urlData, index);
+                    container.appendChild(card);
+                });
+            } catch (error) {
+                console.error('Error loading dashboard:', error);
+                document.getElementById('urlsContainer').innerHTML = 
+                    '<p style="color: red;">Error loading dashboard: ' + error.message + '</p>';
+            }
+        }
+
+        function createUrlCard(urlData, index) {
+            const card = document.createElement('div');
+            card.className = 'url-card';
+            card.id = `url-${index}`;
+            
+            const hasAnalysis = urlData.hasContentAnalysis;
+            const score = hasAnalysis ? (urlData.contentAnalysis.llmPresence.overallScore * 100).toFixed(1) : null;
+            const rating = hasAnalysis ? urlData.contentAnalysis.llmPresence.rating : null;
+            const pageType = hasAnalysis ? urlData.contentAnalysis.llmPresence.pageType : null;
+            
+            card.innerHTML = `
+                <div class="url-title">${urlData.url}</div>
+                <button class="analyze-btn" onclick="analyzeUrl('${urlData.url}', ${index})" id="btn-${index}">
+                    ${hasAnalysis ? '✅ Re-analyze' : '🔍 Analyze This URL'}
+                </button>
+                <span class="status" id="status-${index}" style="display: none;"></span>
+                <div class="progress" id="progress-${index}"></div>
+                <div class="results ${hasAnalysis ? 'show' : ''}" id="results-${index}">
+                    ${hasAnalysis ? `
+                        <div class="score">${score}%</div>
+                        <div class="rating">${rating} - ${pageType}</div>
+                        <p style="margin-top: 10px; font-size: 14px;">
+                            <strong>Freshness:</strong> ${(urlData.contentAnalysis.llmPresence.freshness * 100).toFixed(0)}% | 
+                            <strong>Answerability:</strong> ${(urlData.contentAnalysis.llmPresence.answerability * 100).toFixed(0)}% | 
+                            <strong>Authority:</strong> ${(urlData.contentAnalysis.llmPresence.authority * 100).toFixed(0)}%
+                        </p>
+                    ` : ''}
+                </div>
+            `;
+            
+            return card;
+        }
+
+        async function analyzeUrl(url, index) {
+            const btn = document.getElementById(`btn-${index}`);
+            const status = document.getElementById(`status-${index}`);
+            const progress = document.getElementById(`progress-${index}`);
+            const results = document.getElementById(`results-${index}`);
+            
+            // Disable button
+            btn.disabled = true;
+            status.style.display = 'inline-block';
+            status.className = 'status analyzing';
+            status.innerHTML = '<span class="loading"></span> Analyzing...';
+            progress.textContent = 'Starting analysis...';
+            results.classList.remove('show');
+            
+            try {
+                // Start analysis
+                const response = await fetch(`${apiBase}/${projectId}/analyze-content`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ urls: [url] })
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Failed to start analysis');
+                }
+                
+                progress.textContent = '✓ Analysis started! Monitoring progress...';
+                
+                // Poll for results
+                const maxAttempts = 40;
+                let attempts = 0;
+                
+                const checkResults = async () => {
+                    attempts++;
+                    progress.textContent = `Checking progress... (${attempts}/${maxAttempts})`;
+                    
+                    const dashResponse = await fetch(`${apiBase}/${projectId}/dashboard`);
+                    const dashboard = await dashResponse.json();
+                    
+                    const urlData = dashboard.urls.find(u => u.url === url);
+                    
+                    if (urlData && urlData.hasContentAnalysis) {
+                        // Success!
+                        status.className = 'status completed';
+                        status.innerHTML = '✅ Complete!';
+                        progress.textContent = `✓ Completed in ~${attempts * 3} seconds`;
+                        
+                        const score = (urlData.contentAnalysis.llmPresence.overallScore * 100).toFixed(1);
+                        const rating = urlData.contentAnalysis.llmPresence.rating;
+                        const pageType = urlData.contentAnalysis.llmPresence.pageType;
+                        
+                        results.innerHTML = `
+                            <div class="score">${score}%</div>
+                            <div class="rating">${rating} - ${pageType}</div>
+                            <p style="margin-top: 10px; font-size: 14px;">
+                                <strong>Freshness:</strong> ${(urlData.contentAnalysis.llmPresence.freshness * 100).toFixed(0)}% | 
+                                <strong>Answerability:</strong> ${(urlData.contentAnalysis.llmPresence.answerability * 100).toFixed(0)}% | 
+                                <strong>Authority:</strong> ${(urlData.contentAnalysis.llmPresence.authority * 100).toFixed(0)}%
+                            </p>
+                        `;
+                        results.classList.add('show');
+                        btn.disabled = false;
+                        btn.textContent = '✅ Re-analyze';
+                        
+                    } else if (attempts < maxAttempts) {
+                        setTimeout(checkResults, 3000);
+                    } else {
+                        throw new Error('Timeout waiting for results');
+                    }
+                };
+                
+                setTimeout(checkResults, 3000);
+                
+            } catch (error) {
+                console.error('Error:', error);
+                status.className = 'status';
+                status.style.background = '#fee2e2';
+                status.style.color = '#991b1b';
+                status.textContent = '❌ Error: ' + error.message;
+                progress.textContent = '';
+                btn.disabled = false;
+            }
+        }
+
+        // Load on page load
+        window.onload = loadDashboard;
+    </script>
+</body>
+</html>
+

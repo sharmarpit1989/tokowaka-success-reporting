@@ -1,0 +1,934 @@
+import { useState, useEffect } from 'react'
+import { Upload, TrendingUp, Target, Sparkles, BarChart3, CheckCircle2, Search, X, RefreshCw } from 'lucide-react'
+import { useAppContext } from '../contexts/AppContext'
+
+function CitationPerformance() {
+  // Get global context data
+  const { uploadedUrls, activeProject, citationData: contextCitationData, updateCitationData, addUploadedUrls } = useAppContext()
+  
+  const [isProcessing, setIsProcessing] = useState(false)
+  const [jobId, setJobId] = useState(null)
+  const [localCitationData, setLocalCitationData] = useState(null)
+  const [targetUrls, setTargetUrls] = useState([])
+  const [selectedWeeks, setSelectedWeeks] = useState([]) // Changed to array for multi-select
+  const [selectedPlatform, setSelectedPlatform] = useState('all')
+  const [selectedUrls, setSelectedUrls] = useState([]) // New: multi-select URL filter
+  const [urlSearchTerm, setUrlSearchTerm] = useState('') // New: search term for URLs
+  const [viewMode, setViewMode] = useState('summary') // 'summary' or 'detailed'
+  const [dataSource, setDataSource] = useState(null) // 'context' or 'uploaded'
+
+  // Initialize from context on mount
+  useEffect(() => {
+    let urlsToLoad = []
+    
+    // Priority 1: Check activeProject (from AI Visibility Analysis)
+    if (activeProject && activeProject.sitemapUrls && activeProject.sitemapUrls.length > 0) {
+      urlsToLoad = activeProject.sitemapUrls
+      console.log('[Citation Performance] Loading URLs from activeProject:', urlsToLoad.length)
+    }
+    // Priority 2: Check uploadedUrls
+    else if (uploadedUrls && uploadedUrls.length > 0) {
+      // uploadedUrls is an array of upload objects: [{id, urls, uploadedAt, metadata}, ...]
+      // Extract the actual URLs from the nested structure
+      urlsToLoad = uploadedUrls.flatMap(upload => upload.urls || [])
+      console.log('[Citation Performance] Loading URLs from uploadedUrls:', urlsToLoad.length)
+    }
+    
+    if (urlsToLoad.length > 0) {
+      setTargetUrls(urlsToLoad)
+      setDataSource('context')
+    }
+    
+    // Load citation data from context if available
+    if (contextCitationData) {
+      console.log('[Citation Performance] Loading citation data from context')
+      setLocalCitationData(contextCitationData)
+    }
+  }, [uploadedUrls, activeProject, contextCitationData])
+
+  // Use either local or context citation data
+  const citationData = localCitationData || contextCitationData
+
+  const handleFileUpload = async (e) => {
+    const files = e.target.files
+    if (!files || files.length === 0) return
+
+    const formData = new FormData()
+    for (let i = 0; i < files.length; i++) {
+      formData.append('files', files[i])
+    }
+
+    // Add target URLs if any
+    console.log('[Citation Upload] Target URLs in state:', targetUrls.length);
+    if (targetUrls.length > 0) {
+      formData.append('targetUrls', JSON.stringify(targetUrls));
+      console.log('[Citation Upload] Added target URLs to request:', targetUrls.length);
+    } else {
+      console.warn('[Citation Upload] WARNING: No target URLs to send!');
+    }
+
+    setIsProcessing(true)
+    
+    try {
+      const response = await fetch('/api/citations/upload', {
+        method: 'POST',
+        body: formData
+      })
+      const data = await response.json()
+      
+      setJobId(data.jobId)
+      alert(`Processing ${data.fileCount} files... Job ID: ${data.jobId}`)
+      
+      // Poll for completion
+      pollForResults(data.jobId)
+      
+    } catch (error) {
+      alert('Error uploading files: ' + error.message)
+      setIsProcessing(false)
+    }
+  }
+
+  const handleUrlFileUpload = async (e) => {
+    const file = e.target.files[0]
+    if (!file) return
+
+    const formData = new FormData()
+    formData.append('file', file)
+
+    try {
+      const response = await fetch('/api/unified/upload-urls', {
+        method: 'POST',
+        body: formData
+      })
+      
+      if (!response.ok) {
+        const errorText = await response.text()
+        console.error('[URL Upload] Server error:', errorText)
+        throw new Error(`Server error: ${response.status} - ${errorText}`)
+      }
+      
+      const data = await response.json()
+      setTargetUrls(data.urls)
+      addUploadedUrls(data.urls, { source: 'citation-performance', filename: file.name }) // Save to context
+      setDataSource('uploaded')
+      alert(`Loaded ${data.urlCount} target URLs to track`)
+    } catch (error) {
+      console.error('[URL Upload] Error:', error)
+      alert('Error uploading URL file: ' + error.message)
+    }
+  }
+
+  const pollForResults = async (id) => {
+    const maxAttempts = 40
+    let attempts = 0
+
+    const checkStatus = async () => {
+      try {
+        const response = await fetch(`/api/citations/status/${id}`)
+        const data = await response.json()
+
+        if (data.status === 'completed') {
+          setIsProcessing(false)
+          fetchResults(id)
+          return
+        }
+
+        if (data.status === 'failed') {
+          setIsProcessing(false)
+          alert('Processing failed: ' + (data.error || 'Unknown error'))
+          return
+        }
+
+        attempts++
+        if (attempts < maxAttempts) {
+          setTimeout(checkStatus, 3000)
+        } else {
+          setIsProcessing(false)
+          alert('Processing is taking longer than expected.')
+        }
+      } catch (error) {
+        attempts++
+        if (attempts < maxAttempts) {
+          setTimeout(checkStatus, 3000)
+        }
+      }
+    }
+
+    checkStatus()
+  }
+
+  const fetchResults = async (id) => {
+    try {
+      const response = await fetch(`/api/citations/results/${id}`)
+      const data = await response.json()
+      setLocalCitationData(data)
+      updateCitationData(data) // Save to context for persistence
+      setDataSource('uploaded')
+      
+      // Also load the target URLs if they're in the citation data
+      if (data.targetUrls && data.targetUrls.length > 0) {
+        setTargetUrls(data.targetUrls)
+        addUploadedUrls(data.targetUrls, { source: 'citation-job', jobId: id })
+      }
+    } catch (error) {
+      alert('Error fetching results: ' + error.message)
+    }
+  }
+
+  const loadRecentCitationJob = async () => {
+    try {
+      // Get list of available citation result files
+      const response = await fetch('/api/citations/history')
+      if (!response.ok) {
+        throw new Error('Failed to fetch citation jobs')
+      }
+      
+      const data = await response.json()
+      if (!data.history || data.history.length === 0) {
+        alert('No citation jobs found')
+        return
+      }
+      
+      // Load the most recent job
+      const mostRecentJob = data.history[0]
+      await fetchResults(mostRecentJob.jobId)
+      alert(`✓ Loaded citation data from ${new Date(mostRecentJob.timestamp).toLocaleString()}\nDomain: ${mostRecentJob.domain}\nURLs: ${mostRecentJob.totalUrls}`)
+    } catch (error) {
+      alert('Error loading recent citation job: ' + error.message)
+    }
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div>
+        <h1 className="text-3xl font-bold text-gray-900 mb-2">Citation Performance</h1>
+        <p className="text-gray-600">
+          Track how often AI platforms cite your URLs and analyze citation trends
+        </p>
+      </div>
+
+      {/* Load Recent Data Notice - Show when no usable data is loaded */}
+      {(!citationData || targetUrls.length === 0 || (citationData && (!citationData.citationRates || citationData.citationRates.length === 0))) && !isProcessing && (
+        <div className="bg-blue-50 border-l-4 border-blue-500 rounded-lg p-4 shadow-sm">
+          <div className="flex items-start justify-between">
+            <div className="flex items-start flex-1">
+              <RefreshCw className="w-5 h-5 text-blue-600 mr-3 flex-shrink-0 mt-0.5" />
+              <div>
+                <h3 className="text-sm font-bold text-blue-900 mb-1">
+                  {!citationData ? 'No Data Loaded' : targetUrls.length === 0 ? 'No Target URLs Loaded' : 'No Citation Data Available'}
+                </h3>
+                <p className="text-sm text-blue-800 mb-2">
+                  {targetUrls.length === 0 
+                    ? 'You need target URLs to track citations. Click below to load your most recent data which includes both URLs and citation statistics.'
+                    : 'If you recently uploaded citation data and lost it after a restart, you can reload your most recent data.'}
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={loadRecentCitationJob}
+              className="ml-4 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors flex items-center gap-2 whitespace-nowrap"
+            >
+              <RefreshCw className="w-4 h-4" />
+              Load Recent Data
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Data Pre-loaded Indicator */}
+      {dataSource === 'context' && targetUrls.length > 0 && (
+        <div className="bg-gradient-to-r from-blue-50 to-green-50 border-l-4 border-blue-500 rounded-lg p-4 shadow-sm">
+          <div className="flex items-start">
+            <CheckCircle2 className="w-6 h-6 text-blue-600 mr-3 flex-shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <h3 className="text-sm font-bold text-blue-900 mb-1">
+                ✨ Data Pre-loaded from AI Visibility Analysis
+              </h3>
+              <p className="text-sm text-blue-800 mb-2">
+                Using <span className="font-bold">{targetUrls.length} URLs</span> you uploaded in the AI Visibility section. 
+                {citationData && <span className="ml-1">Citation data is also loaded and ready to view below.</span>}
+              </p>
+              <p className="text-xs text-blue-600">
+                💡 You can skip step 1 below, or upload additional URLs to add to your tracking list.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Upload Section */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Upload Target URLs */}
+        <div className="card">
+          <h2 className="text-xl font-bold mb-4">
+            1. {targetUrls.length > 0 && dataSource === 'context' ? '✓ Target URLs Loaded' : 'Upload Target URLs (Optional)'}
+          </h2>
+          <p className="text-gray-600 mb-4 text-sm">
+            {targetUrls.length > 0 && dataSource === 'context' 
+              ? 'URLs from AI Visibility Analysis are already loaded. You can upload more if needed.'
+              : 'Upload a CSV/Excel with URLs you want to specifically track for citations'
+            }
+          </p>
+          
+          <label className="btn-secondary cursor-pointer inline-flex items-center space-x-2">
+            <Upload className="w-4 h-4" />
+            <span>{targetUrls.length > 0 ? 'Upload Additional URLs' : 'Upload URL List'}</span>
+            <input 
+              type="file" 
+              className="hidden" 
+              accept=".csv,.xlsx,.xls"
+              onChange={handleUrlFileUpload}
+            />
+          </label>
+
+          {targetUrls.length > 0 && (
+            <div className={`mt-4 p-3 rounded-lg ${
+              dataSource === 'context' 
+                ? 'bg-blue-50 border border-blue-200' 
+                : 'bg-green-50 border border-green-200'
+            }`}>
+              <p className={`text-sm ${dataSource === 'context' ? 'text-blue-800' : 'text-green-800'}`}>
+                {dataSource === 'context' ? '🔗' : '✓'} Tracking <span className="font-bold">{targetUrls.length}</span> URLs
+                {dataSource === 'context' && <span className="ml-1">(from AI Visibility)</span>}
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* Upload Brand Presence Data */}
+        <div className="card">
+          <h2 className="text-xl font-bold mb-4">
+            2. {citationData && !localCitationData ? '✓ Citation Data Loaded' : 'Upload Brand Presence Data'}
+          </h2>
+          <p className="text-gray-600 mb-4 text-sm">
+            {citationData && !localCitationData
+              ? 'Citation data from AI Visibility Analysis is already loaded. You can upload new data to update it.'
+              : 'Upload Excel files from AI platforms (format: brandpresence-platform-wXX-YYYY.xlsx)'
+            }
+          </p>
+          
+          <label className="btn-primary cursor-pointer inline-flex items-center space-x-2">
+            <Upload className="w-4 h-4" />
+            <span>{citationData && !localCitationData ? 'Upload New Data' : 'Upload Excel Files'}</span>
+            <input 
+              type="file" 
+              className="hidden" 
+              accept=".xlsx,.xls"
+              multiple
+              onChange={handleFileUpload}
+            />
+          </label>
+
+          {isProcessing && (
+            <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <p className="text-blue-800 font-medium">Processing brand presence data...</p>
+              <div className="w-full bg-blue-200 rounded-full h-2 mt-2">
+                <div className="bg-blue-600 h-2 rounded-full animate-pulse" style={{ width: '70%' }}></div>
+              </div>
+            </div>
+          )}
+
+          {citationData && (
+            <div className={`mt-4 p-3 rounded-lg ${
+              !localCitationData && dataSource === 'context'
+                ? 'bg-blue-50 border border-blue-200'
+                : 'bg-green-50 border border-green-200'
+            }`}>
+              <p className={`font-medium ${
+                !localCitationData && dataSource === 'context' ? 'text-blue-800' : 'text-green-800'
+              }`}>
+                {!localCitationData && dataSource === 'context' ? '🔗 Citation data loaded from AI Visibility' : '✓ Processing complete!'}
+              </p>
+              {(jobId || (!localCitationData && dataSource === 'context')) && (
+                <p className={`text-sm mt-1 ${
+                  !localCitationData && dataSource === 'context' ? 'text-blue-700' : 'text-green-700'
+                }`}>
+                  Scroll down to see results
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Results Section */}
+      {citationData ? (
+        <>
+          {/* Key Metrics Summary */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="card bg-blue-50 border border-blue-200">
+              <div className="flex items-center justify-between mb-2">
+                <div className="text-sm font-medium text-blue-900">Targeted URL Citation Rate</div>
+                <TrendingUp className="w-4 h-4 text-blue-600" />
+              </div>
+              <div className="text-3xl font-bold text-blue-600 mb-1">
+                {(() => {
+                  const summaryRates = citationData.citationRates?.filter(r => r.type === 'summary' || !r.type) || []
+                  if (summaryRates.length === 0) return '0.0'
+                  const avgRate = summaryRates.reduce((sum, r) => sum + (r.selectedUrlRate || 0), 0) / summaryRates.length
+                  return (avgRate * 100).toFixed(1)
+                })()}%
+              </div>
+              <div className="text-xs text-blue-700">
+                Citations to your tracked URLs
+              </div>
+            </div>
+
+            <div className="card bg-green-50 border border-green-200">
+              <div className="flex items-center justify-between mb-2">
+                <div className="text-sm font-medium text-green-900">Domain Citation Rate</div>
+                <Target className="w-4 h-4 text-green-600" />
+              </div>
+              <div className="text-3xl font-bold text-green-600 mb-1">
+                {(() => {
+                  const summaryRates = citationData.citationRates?.filter(r => r.type === 'summary' || !r.type) || []
+                  if (summaryRates.length === 0) return '0.0'
+                  const avgRate = summaryRates.reduce((sum, r) => sum + (r.anyDomainRate || 0), 0) / summaryRates.length
+                  return (avgRate * 100).toFixed(1)
+                })()}%
+              </div>
+              <div className="text-xs text-green-700">
+                Citations to {citationData.domain || 'your domain'}
+              </div>
+            </div>
+
+            <div className="card bg-purple-50 border border-purple-200">
+              <div className="flex items-center justify-between mb-2">
+                <div className="text-sm font-medium text-purple-900">Total Citations</div>
+                <Sparkles className="w-4 h-4 text-purple-600" />
+              </div>
+              <div className="text-3xl font-bold text-purple-600 mb-1">
+                {(() => {
+                  const summaryRates = citationData.citationRates?.filter(r => r.type === 'summary' || !r.type) || []
+                  const total = summaryRates.reduce((sum, r) => sum + (r.selectedUrlCitations || 0), 0)
+                  return total.toLocaleString()
+                })()}
+              </div>
+              <div className="text-xs text-purple-700">
+                Across all platforms & weeks
+              </div>
+            </div>
+          </div>
+
+          {/* Filters Section */}
+          {citationData.citationRates && citationData.citationRates.length > 0 && (() => {
+            const summaryRates = citationData.citationRates.filter(r => r.type === 'summary' || !r.type);
+            const weeks = [...new Set(summaryRates.map(r => r.week).filter(Boolean))].sort();
+            
+            // Get all cited URLs
+            const allCitedUrls = new Set();
+            summaryRates.forEach(rate => {
+              if (rate.citedUrls && Array.isArray(rate.citedUrls)) {
+                rate.citedUrls.forEach(url => allCitedUrls.add(url));
+              }
+            });
+            const citedUrlsList = Array.from(allCitedUrls).sort();
+            const filteredUrlsList = citedUrlsList.filter(url => 
+              url.toLowerCase().includes(urlSearchTerm.toLowerCase())
+            );
+
+            return (
+              <div className="card bg-gradient-to-br from-gray-50 to-blue-50">
+                <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+                  <Search className="w-5 h-5 text-blue-600" />
+                  Filters
+                </h2>
+                
+                <div className="space-y-4">
+                  {/* Multi-select Week Filter */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Filter by Week (Multi-select) - {selectedWeeks.length > 0 ? `${selectedWeeks.length} selected` : 'All weeks'}
+                    </label>
+                    <div className="border border-gray-300 rounded-lg p-3 bg-white">
+                      <div className="flex flex-wrap gap-2 mb-2">
+                        {selectedWeeks.length === 0 ? (
+                          <span className="text-sm text-gray-400">No weeks selected (showing all)</span>
+                        ) : (
+                          selectedWeeks.map(week => (
+                            <span
+                              key={week}
+                              className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium"
+                            >
+                              {week}
+                              <button
+                                onClick={() => setSelectedWeeks(selectedWeeks.filter(w => w !== week))}
+                                className="hover:bg-blue-200 rounded-full p-0.5"
+                              >
+                                <X className="w-3 h-3" />
+                              </button>
+                            </span>
+                          ))
+                        )}
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {weeks.filter(w => !selectedWeeks.includes(w)).map(week => (
+                          <button
+                            key={week}
+                            onClick={() => setSelectedWeeks([...selectedWeeks, week])}
+                            className="px-3 py-1 text-sm border border-gray-300 rounded-full hover:bg-gray-50 transition-colors"
+                          >
+                            + {week}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* URL Search and Multi-select */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Filter by URL (Multi-select) - {selectedUrls.length > 0 ? `${selectedUrls.length} selected` : 'All URLs'}
+                    </label>
+                    <div className="border border-gray-300 rounded-lg p-3 bg-white">
+                      {/* Search box */}
+                      <div className="relative mb-3">
+                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                        <input
+                          type="text"
+                          placeholder="Search URLs..."
+                          value={urlSearchTerm}
+                          onChange={(e) => setUrlSearchTerm(e.target.value)}
+                          className="w-full pl-10 pr-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        />
+                      </div>
+                      
+                      {/* Selected URLs */}
+                      <div className="flex flex-wrap gap-2 mb-2">
+                        {selectedUrls.length === 0 ? (
+                          <span className="text-sm text-gray-400">No URLs selected (showing all)</span>
+                        ) : (
+                          selectedUrls.map(url => (
+                            <span
+                              key={url}
+                              className="inline-flex items-center gap-1 px-3 py-1 bg-green-100 text-green-800 rounded-full text-xs font-medium max-w-xs"
+                              title={url}
+                            >
+                              <span className="truncate">{url.length > 40 ? url.substring(0, 40) + '...' : url}</span>
+                              <button
+                                onClick={() => setSelectedUrls(selectedUrls.filter(u => u !== url))}
+                                className="hover:bg-green-200 rounded-full p-0.5 flex-shrink-0"
+                              >
+                                <X className="w-3 h-3" />
+                              </button>
+                            </span>
+                          ))
+                        )}
+                      </div>
+                      
+                      {/* Available URLs */}
+                      {filteredUrlsList.length > 0 && (
+                        <div className="max-h-40 overflow-y-auto space-y-1">
+                          {filteredUrlsList.filter(url => !selectedUrls.includes(url)).slice(0, 20).map(url => (
+                            <button
+                              key={url}
+                              onClick={() => setSelectedUrls([...selectedUrls, url])}
+                              className="w-full text-left px-3 py-2 text-sm border border-gray-200 rounded hover:bg-gray-50 transition-colors truncate"
+                              title={url}
+                            >
+                              + {url}
+                            </button>
+                          ))}
+                          {filteredUrlsList.filter(url => !selectedUrls.includes(url)).length > 20 && (
+                            <p className="text-xs text-gray-500 px-3 py-1">
+                              ... and {filteredUrlsList.filter(url => !selectedUrls.includes(url)).length - 20} more. Use search to narrow down.
+                            </p>
+                          )}
+                        </div>
+                      )}
+                      {filteredUrlsList.length === 0 && urlSearchTerm && (
+                        <p className="text-sm text-gray-500">No URLs match your search.</p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Clear Filters Button */}
+                  {(selectedWeeks.length > 0 || selectedUrls.length > 0) && (
+                    <div className="flex justify-end">
+                      <button
+                        onClick={() => {
+                          setSelectedWeeks([]);
+                          setSelectedUrls([]);
+                          setUrlSearchTerm('');
+                        }}
+                        className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
+                      >
+                        Clear All Filters
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* Platform Performance Overview */}
+          {citationData.citationRates && citationData.citationRates.length > 0 && (() => {
+            const summaryRates = citationData.citationRates.filter(r => r.type === 'summary' || !r.type);
+            
+            // Apply filters to get filtered data
+            const filteredData = summaryRates.filter(rate => {
+              const weekMatch = selectedWeeks.length === 0 || selectedWeeks.includes(rate.week);
+              let urlMatch = true;
+              if (selectedUrls.length > 0 && rate.citedUrls) {
+                urlMatch = rate.citedUrls.some(url => selectedUrls.includes(url));
+              }
+              return weekMatch && urlMatch;
+            });
+            
+            // Group by platform
+            const platformStats = {};
+            filteredData.forEach(rate => {
+              if (!platformStats[rate.platform]) {
+                platformStats[rate.platform] = {
+                  totalPrompts: 0,
+                  selectedUrlCitations: 0,
+                  anyDomainCitations: 0,
+                  citedUrls: new Set()
+                };
+              }
+              platformStats[rate.platform].totalPrompts += rate.totalPrompts || 0;
+              platformStats[rate.platform].selectedUrlCitations += rate.selectedUrlCitations || 0;
+              platformStats[rate.platform].anyDomainCitations += rate.anyDomainCitations || 0;
+              if (rate.citedUrls) {
+                rate.citedUrls.forEach(url => platformStats[rate.platform].citedUrls.add(url));
+              }
+            });
+            
+            // Convert to array and calculate rates
+            const platformList = Object.keys(platformStats).map(platform => ({
+              platform,
+              totalPrompts: platformStats[platform].totalPrompts,
+              selectedUrlCitations: platformStats[platform].selectedUrlCitations,
+              anyDomainCitations: platformStats[platform].anyDomainCitations,
+              selectedUrlRate: platformStats[platform].totalPrompts > 0 
+                ? (platformStats[platform].selectedUrlCitations / platformStats[platform].totalPrompts) 
+                : 0,
+              domainRate: platformStats[platform].totalPrompts > 0 
+                ? (platformStats[platform].anyDomainCitations / platformStats[platform].totalPrompts) 
+                : 0,
+              citedUrls: Array.from(platformStats[platform].citedUrls)
+            })).sort((a, b) => b.selectedUrlRate - a.selectedUrlRate);
+
+            return (
+              <div className="card">
+                <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+                  <Target className="w-5 h-5 text-blue-600" />
+                  Platform Performance Overview
+                </h2>
+                <p className="text-sm text-gray-600 mb-4">
+                  Citation rates by platform for selected filters. Shows targeted URL citations and overall domain citations.
+                </p>
+                
+                {platformList.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">
+                    No data available for the selected filters.
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {platformList.map(platform => (
+                      <div key={platform.platform} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+                        <div className="flex items-center justify-between mb-3">
+                          <h3 className="font-bold text-lg text-gray-900">{platform.platform}</h3>
+                          <Sparkles className="w-5 h-5 text-purple-500" />
+                        </div>
+                        
+                        <div className="space-y-3">
+                          {/* Targeted URL Citation Rate */}
+                          <div className="bg-blue-50 rounded-lg p-3">
+                            <div className="text-xs font-medium text-blue-900 mb-1">Targeted URL Rate</div>
+                            <div className="text-2xl font-bold text-blue-600">
+                              {(platform.selectedUrlRate * 100).toFixed(1)}%
+                            </div>
+                            <div className="text-xs text-blue-700 mt-1">
+                              {platform.selectedUrlCitations} / {platform.totalPrompts} prompts
+                            </div>
+                          </div>
+                          
+                          {/* Domain Citation Rate */}
+                          <div className="bg-green-50 rounded-lg p-3">
+                            <div className="text-xs font-medium text-green-900 mb-1">Domain Rate</div>
+                            <div className="text-2xl font-bold text-green-600">
+                              {(platform.domainRate * 100).toFixed(1)}%
+                            </div>
+                            <div className="text-xs text-green-700 mt-1">
+                              {platform.anyDomainCitations} / {platform.totalPrompts} prompts
+                            </div>
+                          </div>
+                          
+                          {/* Cited URLs Count */}
+                          {platform.citedUrls.length > 0 && (
+                            <div className="text-xs text-gray-600">
+                              <span className="font-medium">{platform.citedUrls.length}</span> unique URLs cited
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+
+          {/* Detailed Citation Rates Table (Optional) */}
+          {citationData.citationRates && citationData.citationRates.length > 0 && (() => {
+            // Extract unique weeks and platforms from summary rows only
+            const summaryRates = citationData.citationRates.filter(r => r.type === 'summary' || !r.type);
+            const perUrlRates = citationData.citationRates.filter(r => r.type === 'per-url');
+            
+            const platforms = ['all', ...new Set(summaryRates.map(r => r.platform).filter(Boolean))].sort();
+            
+            // Determine which rates to use based on view mode
+            const ratesToFilter = viewMode === 'summary' ? summaryRates : citationData.citationRates;
+            
+            // Filter citation rates based on selections
+            const filteredRates = ratesToFilter.filter(rate => {
+              // Week filter: if no weeks selected, show all; otherwise match selected weeks
+              const weekMatch = selectedWeeks.length === 0 || selectedWeeks.includes(rate.week);
+              
+              const platformMatch = selectedPlatform === 'all' || rate.platform === selectedPlatform;
+              const typeMatch = viewMode === 'summary' ? (rate.type === 'summary' || !rate.type) : true;
+              
+              // URL filter: if URLs are selected, only show rates that include those URLs
+              let urlMatch = true;
+              if (selectedUrls.length > 0 && rate.citedUrls) {
+                urlMatch = rate.citedUrls.some(url => selectedUrls.includes(url));
+              }
+              
+              return weekMatch && platformMatch && typeMatch && urlMatch;
+            });
+
+            return (
+              <div className="card">
+                <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+                  <BarChart3 className="w-5 h-5 text-purple-600" />
+                  Detailed Data Table
+                </h2>
+                <p className="text-sm text-gray-600 mb-4">
+                  Granular view of citation rates by week and platform. Toggle between summary and detailed views.
+                </p>
+                
+                {/* Table Options */}
+                <div className="flex flex-wrap gap-4 mb-6">
+                  <div className="flex-1 min-w-[200px]">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      View Mode
+                    </label>
+                    <select
+                      value={viewMode}
+                      onChange={(e) => setViewMode(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-blue-50 font-medium"
+                    >
+                      <option value="summary">Summary (by Week & Platform)</option>
+                      <option value="detailed">Detailed (including Per-URL)</option>
+                    </select>
+                  </div>
+
+                  <div className="flex-1 min-w-[200px]">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Filter by Platform
+                    </label>
+                    <select
+                      value={selectedPlatform}
+                      onChange={(e) => setSelectedPlatform(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                      {platforms.map(platform => (
+                        <option key={platform} value={platform}>
+                          {platform === 'all' ? 'All Platforms' : platform}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {viewMode === 'summary' && (
+                  <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    <p className="text-sm text-blue-800">
+                      <strong>Summary View:</strong> Shows one row per week+platform combination with overall domain citation statistics.
+                    </p>
+                  </div>
+                )}
+
+                {viewMode === 'detailed' && (
+                  <div className="mb-4 p-3 bg-purple-50 border border-purple-200 rounded-lg">
+                    <p className="text-sm text-purple-800">
+                      <strong>Detailed View:</strong> Shows summary rows plus individual URL citation breakdowns.
+                    </p>
+                  </div>
+                )}
+
+                <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-gray-200">
+                      <th className="text-left py-3 px-4 font-semibold text-gray-700">Week</th>
+                      <th className="text-left py-3 px-4 font-semibold text-gray-700">Platform</th>
+                      <th className="text-right py-3 px-4 font-semibold text-gray-700">Total Prompts</th>
+                      <th className="text-right py-3 px-4 font-semibold text-gray-700">
+                        {viewMode === 'summary' ? 'Tracked URL Citations' : 'Citations'}
+                      </th>
+                      <th className="text-right py-3 px-4 font-semibold text-gray-700">
+                        {viewMode === 'summary' ? 'Tracked URL Rate' : 'Citation Rate'}
+                      </th>
+                      <th className="text-right py-3 px-4 font-semibold text-gray-700">Domain Citations</th>
+                      <th className="text-right py-3 px-4 font-semibold text-gray-700">Domain Rate</th>
+                      {viewMode === 'detailed' && (
+                        <th className="text-left py-3 px-4 font-semibold text-gray-700">Cited URLs</th>
+                      )}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredRates.slice(0, 50).map((rate, i) => (
+                      <tr key={i} className="border-b border-gray-100 hover:bg-gray-50">
+                        <td className="py-3 px-4 font-medium">{rate.week}</td>
+                        <td className="py-3 px-4">
+                          <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs font-medium">
+                            {rate.platform}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4 text-right text-gray-700">{rate.totalPrompts || 0}</td>
+                        <td className="py-3 px-4 text-right font-semibold text-blue-600">
+                          {rate.type === 'summary' || !rate.type 
+                            ? rate.selectedUrlCitations || 0 
+                            : rate.citations || 0}
+                        </td>
+                        <td className="py-3 px-4 text-right">
+                          <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded font-bold">
+                            {rate.type === 'summary' || !rate.type 
+                              ? ((rate.selectedUrlRate || 0) * 100).toFixed(1)
+                              : ((rate.citationRate || 0) * 100).toFixed(1)}%
+                          </span>
+                        </td>
+                        <td className="py-3 px-4 text-right font-semibold text-green-600">
+                          {rate.type === 'summary' || !rate.type 
+                            ? rate.anyDomainCitations || 0 
+                            : '-'}
+                        </td>
+                        <td className="py-3 px-4 text-right">
+                          <span className="px-2 py-1 bg-green-100 text-green-800 rounded font-bold">
+                            {rate.type === 'summary' || !rate.type 
+                              ? ((rate.anyDomainRate || 0) * 100).toFixed(1)
+                              : ((rate.citationRate || 0) * 100).toFixed(1)}%
+                          </span>
+                        </td>
+                        {viewMode === 'detailed' && (
+                          <td className="py-3 px-4 text-xs text-gray-600 max-w-xs">
+                            {rate.type === 'summary' || !rate.type ? (
+                              rate.citedUrls && rate.citedUrls.length > 0 ? (
+                                <div className="space-y-1">
+                                  {rate.citedUrls.map((url, idx) => (
+                                    <div key={idx} className="truncate" title={url}>
+                                      • {url}
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : (
+                                <span className="text-gray-400">-</span>
+                              )
+                            ) : (
+                              rate.url || '-'
+                            )}
+                          </td>
+                        )}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {filteredRates.length > 50 && (
+                <p className="text-sm text-gray-500 text-center mt-4">
+                  Showing 50 of {filteredRates.length} data points
+                </p>
+              )}
+              {filteredRates.length === 0 && (
+                <p className="text-sm text-gray-500 text-center py-8">
+                  No citation data found for the selected filters.
+                </p>
+              )}
+              {filteredRates.length > 0 && filteredRates.length <= 50 && (
+                <p className="text-sm text-gray-500 text-center mt-4">
+                  Showing all {filteredRates.length} data points
+                </p>
+              )}
+            </div>
+            );
+          })()}
+
+          {/* Combined Data Summary */}
+          {citationData.combinedData && (
+            <div className="card">
+              <h2 className="text-xl font-bold mb-4">Combined Data Summary</h2>
+              <div className="grid grid-cols-3 gap-4">
+                <div className="text-center p-4 bg-green-50 rounded-lg">
+                  <div className="text-3xl font-bold text-green-600">
+                    {citationData.combinedData.filter(r => r.selected_url_cited === 'Y').length}
+                  </div>
+                  <div className="text-sm text-gray-600 mt-1">Selected URL Citations</div>
+                </div>
+                <div className="text-center p-4 bg-blue-50 rounded-lg">
+                  <div className="text-3xl font-bold text-blue-600">
+                    {citationData.combinedData.filter(r => r.any_url_from_domain === 'Y').length}
+                  </div>
+                  <div className="text-sm text-gray-600 mt-1">Any Domain Citations</div>
+                </div>
+                <div className="text-center p-4 bg-purple-50 rounded-lg">
+                  <div className="text-3xl font-bold text-purple-600">
+                    {citationData.combinedData.filter(r => r.any_url_from_domain_excluding_specified_URLs === 'Y').length}
+                  </div>
+                  <div className="text-sm text-gray-600 mt-1">Other Domain URLs</div>
+                </div>
+              </div>
+            </div>
+          )}
+        </>
+      ) : (
+        <>
+          {/* Key Metrics Summary - Empty State */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="card bg-blue-50 border border-blue-200">
+              <div className="flex items-center justify-between mb-2">
+                <div className="text-sm font-medium text-blue-900">Targeted URL Citation Rate</div>
+                <TrendingUp className="w-4 h-4 text-blue-600" />
+              </div>
+              <div className="text-3xl font-bold text-gray-400 mb-1">0%</div>
+              <div className="text-xs text-gray-500">Upload data to see metrics</div>
+            </div>
+
+            <div className="card bg-green-50 border border-green-200">
+              <div className="flex items-center justify-between mb-2">
+                <div className="text-sm font-medium text-green-900">Domain Citation Rate</div>
+                <Target className="w-4 h-4 text-green-600" />
+              </div>
+              <div className="text-3xl font-bold text-gray-400 mb-1">0%</div>
+              <div className="text-xs text-gray-500">Upload data to see metrics</div>
+            </div>
+
+            <div className="card bg-purple-50 border border-purple-200">
+              <div className="flex items-center justify-between mb-2">
+                <div className="text-sm font-medium text-purple-900">Total Citations</div>
+                <Sparkles className="w-4 h-4 text-purple-600" />
+              </div>
+              <div className="text-3xl font-bold text-gray-400 mb-1">0</div>
+              <div className="text-xs text-gray-500">Upload data to see metrics</div>
+            </div>
+          </div>
+
+          {/* Empty State */}
+          <div className="card text-center py-12">
+            <BarChart3 className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">No Citation Data Yet</h3>
+            <p className="text-gray-600 mb-6 max-w-md mx-auto">
+              Upload brand presence Excel files to track citation rates across AI platforms.
+            </p>
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
+export default CitationPerformance
+

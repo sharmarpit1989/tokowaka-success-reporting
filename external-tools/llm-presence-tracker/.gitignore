@@ -1,0 +1,18 @@
+# Output directory
+output/
+*.csv
+!sample-urls.csv
+
+# Logs
+*.log
+
+# Environment variables
+.env
+
+# Node modules (use parent's)
+node_modules/
+
+# Examples library (uncomment to exclude from version control)
+# Useful if library contains sensitive domain data
+# examples-library.json
+

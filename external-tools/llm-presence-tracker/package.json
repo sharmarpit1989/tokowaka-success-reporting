@@ -1,0 +1,37 @@
+{
+  "name": "llm-presence-tracker",
+  "version": "1.0.0",
+  "description": "Analyze and track how discoverable your web pages are to Large Language Models",
+  "main": "main.js",
+  "scripts": {
+    "start": "node main.js",
+    "analyze": "node main.js --csv sample-urls.csv",
+    "analyze:rum": "node main-rum.js",
+    "opportunities": "node main-rum.js --mode opportunities",
+    "help": "node main.js --help",
+    "help:rum": "node main-rum.js --help"
+  },
+  "keywords": [
+    "llm",
+    "seo",
+    "ai",
+    "chatgpt",
+    "discoverability",
+    "search",
+    "optimization",
+    "rum",
+    "real-user-monitoring"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "puppeteer": "^21.0.0",
+    "cheerio": "^1.0.0-rc.12",
+    "fs-extra": "^11.0.0",
+    "@adobe/spacecat-shared-rum-api-client": "^2.40.0"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  }
+}
+

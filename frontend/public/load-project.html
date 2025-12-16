@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Loading Your Project...</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .loader {
+            text-align: center;
+            background: white;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        h2 { color: #333; margin-bottom: 10px; }
+        p { color: #666; }
+        .success { color: #10b981; font-weight: bold; }
+        .error { color: #ef4444; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="loader">
+        <div class="spinner"></div>
+        <h2>Loading Your Project...</h2>
+        <p id="status">Fetching your lovesac.com data...</p>
+    </div>
+
+    <script>
+        const projectId = '9936982a-d3ad-48af-9f89-b6c4980b7b1f';
+        const status = document.getElementById('status');
+
+        // Auto-load the project
+        async function loadProject() {
+            try {
+                status.textContent = 'Connecting to backend...';
+                
+                const response = await fetch(`http://localhost:3000/api/unified/${projectId}/dashboard`);
+                if (!response.ok) throw new Error('Failed to load project');
+                
+                const data = await response.json();
+                
+                status.textContent = `✅ Found ${data.urlCount} URLs!`;
+                
+                // Save to localStorage
+                localStorage.setItem('activeProject', JSON.stringify({
+                    projectId: data.projectId,
+                    domain: data.domain,
+                    urlCount: data.urlCount,
+                    citationUploaded: true,
+                    dashboard: data
+                }));
+                
+                status.className = 'success';
+                status.textContent = `✅ Loaded ${data.urlCount} URLs from ${data.domain}! Redirecting...`;
+                
+                // Redirect to dashboard
+                setTimeout(() => {
+                    window.location.href = '/ai-visibility';
+                }, 1500);
+                
+            } catch (error) {
+                console.error('Error:', error);
+                status.className = 'error';
+                status.textContent = '❌ Error: ' + error.message;
+                
+                setTimeout(() => {
+                    window.location.href = '/ai-visibility';
+                }, 3000);
+            }
+        }
+
+        // Run on page load
+        loadProject();
+    </script>
+</body>
+</html>
+
