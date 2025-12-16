@@ -54,5 +54,3 @@ temp/
 # yarn.lock
 # pnpm-lock.yaml
 
-#unnecessary docs
-docs-archive/
