@@ -626,25 +626,30 @@ function AIVisibility() {
         
         // Check status endpoint first (lighter than full dashboard)
         const statusResponse = await fetch(`/api/unified/${projectId}/status`)
-        if (statusResponse.ok) {
-          const status = await statusResponse.json()
-          console.log('[Analyze URL] Status check:', status)
+        if (!statusResponse.ok) {
+          console.error('[Analyze URL] Status fetch failed:', statusResponse.status)
+          throw new Error('Failed to load status')
         }
         
-        // Reload dashboard to get actual data
-        // ⚡ OPTIMIZATION: No cache busting during polling - let browser cache work
-        const response = await fetch(`/api/unified/${projectId}/dashboard`)
-        if (!response.ok) {
-          console.error('[Analyze URL] Dashboard fetch failed:', response.status)
-          throw new Error('Failed to load dashboard')
-        }
+        const status = await statusResponse.json()
+        console.log('[Analyze URL] Status check:', status)
         
-        const data = await response.json()
-        console.log('[Analyze URL] Dashboard data received, checking for URL:', url)
-        
-        const urlData = data.urls?.find(u => u.url === url)
-        
-        if (urlData && urlData.hasContentAnalysis) {
+        // Only fetch full dashboard if analysis is complete (saves expensive citation map rebuild)
+        if (!status.isProcessing) {
+          console.log('[Analyze URL] Analysis complete, fetching full dashboard...')
+          
+          const response = await fetch(`/api/unified/${projectId}/dashboard`)
+          if (!response.ok) {
+            console.error('[Analyze URL] Dashboard fetch failed:', response.status)
+            throw new Error('Failed to load dashboard')
+          }
+          
+          const data = await response.json()
+          console.log('[Analyze URL] Dashboard data received, checking for URL:', url)
+          
+          const urlData = data.urls?.find(u => u.url === url)
+          
+          if (urlData && urlData.hasContentAnalysis) {
           console.log('[Analyze URL] ✅ Analysis complete for:', url)
           console.log('[Analyze URL] Analysis data:', urlData.contentAnalysis)
           
@@ -699,6 +704,10 @@ function AIVisibility() {
           })
           updateProgress(url, 0, '', 0, true)
           return
+          }
+        } else {
+          // Still processing - continue polling without heavy dashboard fetch
+          console.log('[Analyze URL] Still processing, will check again...')
         }
 
         if (attempts < maxAttempts) {
@@ -1663,6 +1672,7 @@ function URLRow({ urlData, expanded, isAnalyzing, progress, isSelected, onToggle
             <ContentAnalysisSection 
               analysis={contentAnalysis} 
               url={url}
+              onAnalyze={onAnalyze}
               onGenerateInsights={onGenerateInsights}
               onRegenerateInsights={onRegenerateInsights}
               isGeneratingInsights={isGeneratingInsights}
@@ -1817,7 +1827,7 @@ function AnalysisProgressDisplay({ progress }) {
 }
 
 // Content Analysis Section
-function ContentAnalysisSection({ analysis, url, onGenerateInsights, onRegenerateInsights, isGeneratingInsights }) {
+function ContentAnalysisSection({ analysis, url, onAnalyze, onGenerateInsights, onRegenerateInsights, isGeneratingInsights }) {
   console.log('[ContentAnalysisSection] Rendering with analysis:', analysis)
   
   if (!analysis) {
@@ -1927,11 +1937,14 @@ function ContentAnalysisSection({ analysis, url, onGenerateInsights, onRegenerat
             
             {/* Action button to retry */}
             <button
-              onClick={() => window.location.reload()}
+              onClick={(e) => {
+                e.stopPropagation()
+                onAnalyze()
+              }}
               className="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-medium flex items-center gap-2"
             >
               <RotateCcw className="w-4 h-4" />
-              Refresh Page to Retry
+              Retry Analysis
             </button>
           </div>
         </div>

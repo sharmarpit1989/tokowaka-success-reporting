@@ -65,12 +65,12 @@ function Layout({ children }) {
       </header>
 
       <div className="flex relative">
-        {/* Hover-Expandable Sidebar */}
+        {/* Floating Sidebar */}
         <aside 
           className={`
             ${sidebarWidth} bg-white border-r border-gray-200 min-h-[calc(100vh-4rem)] 
-            sticky top-16 transition-all duration-300 ease-in-out z-40
-            ${!isPinned && !isSidebarExpanded ? 'shadow-lg' : ''}
+            fixed top-16 left-0 transition-all duration-300 ease-in-out z-40
+            shadow-xl
           `}
           onMouseEnter={() => !isPinned && setIsSidebarExpanded(true)}
           onMouseLeave={() => !isPinned && setIsSidebarExpanded(false)}
@@ -214,7 +214,7 @@ function Layout({ children }) {
         </aside>
 
         {/* Main Content */}
-        <main className="flex-1 min-h-[calc(100vh-4rem)] bg-gradient-to-br from-gray-50 to-gray-100">
+        <main className={`flex-1 min-h-[calc(100vh-4rem)] bg-gradient-to-br from-gray-50 to-gray-100 transition-all duration-300 ${isSidebarExpanded || isPinned ? 'ml-64' : 'ml-20'}`}>
           <div className="p-4 sm:p-6 lg:p-8">
             <div className="max-w-7xl mx-auto space-y-6">
               {/* Data Persistence Indicator */}

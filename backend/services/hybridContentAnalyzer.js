@@ -466,25 +466,25 @@ async function analyzeSingleUrl(browser, url, aiKey) {
           let gotoOptions = { timeout: config.puppeteer.timeout };
           
           if (attempt === 1) {
-            // First attempt: Standard approach
-            gotoOptions.waitUntil = 'networkidle2';
+            // First attempt: Use domcontentloaded (more reliable for modern sites)
+            gotoOptions.waitUntil = 'domcontentloaded';
           } else if (attempt === 2) {
-            // Second attempt: Disable HTTP/2 with headers + relaxed wait
-            logger.debug('Using relaxed wait condition', { url, attempt });
+            // Second attempt: Disable HTTP/2 with headers + domcontentloaded
+            logger.debug('Using HTTP/2 workaround', { url, attempt });
             await page.setExtraHTTPHeaders({
               'Connection': 'close',
               'HTTP2-Settings': '' // Hint to not use HTTP/2
             });
-            gotoOptions.waitUntil = 'networkidle0'; // More lenient
+            gotoOptions.waitUntil = 'domcontentloaded';
           } else {
             // Third attempt: Most aggressive fallback
-            logger.debug('Using most aggressive fallback (domcontentloaded)', { url, attempt });
+            logger.debug('Using most aggressive fallback (load event)', { url, attempt });
             await page.setExtraHTTPHeaders({
               'Connection': 'close',
               'HTTP2-Settings': '',
               'Upgrade-Insecure-Requests': '1'
             });
-            gotoOptions.waitUntil = 'domcontentloaded'; // Minimal wait
+            gotoOptions.waitUntil = 'load'; // Wait for load event only
             gotoOptions.timeout = 20000; // Shorter timeout
           }
           

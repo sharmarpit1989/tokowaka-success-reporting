@@ -326,7 +326,7 @@ async function analyzeUrl(browser, url, timestamp, searchQueryData = {}, disable
     logger.info(`Analyzing ${url}...`);
     
     const response = await page.goto(url, { 
-      waitUntil: 'networkidle2',
+      waitUntil: 'domcontentloaded',
       timeout: 60000
     });
     

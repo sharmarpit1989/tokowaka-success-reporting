@@ -862,12 +862,6 @@ function PlatformPerformanceSection({ citationData, selectedWeeks, selectedUrls 
       .slice(0, 3)
       .map(([url, count]) => ({ url, count }))
     
-    // Performance indicator
-    let performance = 'fair'
-    if (selectedUrlRate >= 0.15) performance = 'excellent'
-    else if (selectedUrlRate >= 0.10) performance = 'good'
-    else if (selectedUrlRate < 0.05) performance = 'poor'
-    
     // Calculate week-over-week change
     const weeks = Object.keys(stats.weeklyData).sort()
     let weeklyTrend = null
@@ -898,7 +892,6 @@ function PlatformPerformanceSection({ citationData, selectedWeeks, selectedUrls 
       citedUrls: Array.from(stats.citedUrls),
       weekCount: stats.weeks.size,
       topUrls,
-      performance,
       weeklyTrend
     }
   }).sort((a, b) => b.selectedUrlRate - a.selectedUrlRate)
@@ -907,16 +900,6 @@ function PlatformPerformanceSection({ citationData, selectedWeeks, selectedUrls 
   const avgUrlRate = platformList.length > 0 
     ? platformList.reduce((sum, p) => sum + p.selectedUrlRate, 0) / platformList.length 
     : 0
-
-  const getPerformanceColor = (performance) => {
-    switch(performance) {
-      case 'excellent': return 'text-green-600 bg-green-50 border-green-200'
-      case 'good': return 'text-blue-600 bg-blue-50 border-blue-200'
-      case 'fair': return 'text-yellow-600 bg-yellow-50 border-yellow-200'
-      case 'poor': return 'text-red-600 bg-red-50 border-red-200'
-      default: return 'text-gray-600 bg-gray-50 border-gray-200'
-    }
-  }
 
   const getComparisonIndicator = (weeklyTrend) => {
     if (!weeklyTrend || weeklyTrend.change === null || weeklyTrend.change === undefined) {
@@ -964,7 +947,6 @@ function PlatformPerformanceSection({ citationData, selectedWeeks, selectedUrls 
             <thead>
               <tr className="border-b-2 border-gray-200 bg-gray-50">
                 <th className="text-left py-3 px-4 font-semibold text-gray-700">Platform</th>
-                <th className="text-center py-3 px-3 font-semibold text-gray-700">Status</th>
                 <th className="text-right py-3 px-4 font-semibold text-gray-700">Target URL Citation Rate</th>
                 <th className="text-right py-3 px-4 font-semibold text-gray-700">Domain Rate</th>
                 <th className="text-right py-3 px-3 font-semibold text-gray-700">Prompts</th>
@@ -990,11 +972,6 @@ function PlatformPerformanceSection({ citationData, selectedWeeks, selectedUrls 
                           <Sparkles className="w-4 h-4 text-purple-500 flex-shrink-0" />
                           <span className="font-semibold text-gray-900">{platform.platform}</span>
                         </div>
-                      </td>
-                      <td className="py-3 px-3">
-                        <span className={`inline-block px-2 py-1 rounded text-xs font-medium border ${getPerformanceColor(platform.performance)}`}>
-                          {platform.performance}
-                        </span>
                       </td>
                       <td className="py-3 px-4 text-right">
                         <div>
@@ -1049,7 +1026,7 @@ function PlatformPerformanceSection({ citationData, selectedWeeks, selectedUrls 
                     {/* Expanded details */}
                     {isExpanded && (
                       <tr className="bg-gray-50 border-b border-gray-100">
-                        <td colSpan="8" className="px-4 py-4">
+                        <td colSpan="7" className="px-4 py-4">
                           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
                             <div>
                               <h4 className="font-semibold text-gray-700 mb-2 flex items-center gap-1">
