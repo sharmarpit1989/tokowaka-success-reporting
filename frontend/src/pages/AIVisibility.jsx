@@ -1974,7 +1974,7 @@ function ContentAnalysisSection({ analysis, url, onAnalyze, onGenerateInsights, 
               details={analysis.details?.answerability}
             />
             <MetricCard
-              label="Query Alignment"
+              label="Natural Language Fit"
               value={analysis.llmPresence.queryAlignment}
               details={analysis.details?.queryAlignment}
             />

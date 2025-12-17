@@ -195,7 +195,7 @@ Current Scores:
 - Overall LLM Presence: ${(llmPresence.overallScore * 100).toFixed(1)}% (${llmPresence.rating})
 - Freshness: ${(llmPresence.freshness * 100).toFixed(1)}%
 - Answerability: ${(llmPresence.answerability * 100).toFixed(1)}%
-- Query Alignment: ${(llmPresence.queryAlignment * 100).toFixed(1)}%
+- Natural Language Fit: ${(llmPresence.queryAlignment * 100).toFixed(1)}%
 - Authority: ${(llmPresence.authority * 100).toFixed(1)}%
 - Structure: ${(llmPresence.structure * 100).toFixed(1)}%
 - Snippet Quality: ${(llmPresence.snippetQuality * 100).toFixed(1)}%
@@ -333,7 +333,7 @@ function generateFallbackRecommendations(llmPresence) {
   const scores = [
     { name: 'freshness', score: llmPresence.freshness, advice: 'Add clear publication and last-updated dates in both metadata and visible content' },
     { name: 'answerability', score: llmPresence.answerability, advice: 'Create an FAQ section addressing common user questions directly' },
-    { name: 'queryAlignment', score: llmPresence.queryAlignment, advice: 'Incorporate natural language questions and conversational phrases users would ask' },
+    { name: 'naturalLanguageFit', score: llmPresence.queryAlignment, advice: 'Write more conversationally with natural language patterns' },
     { name: 'authority', score: llmPresence.authority, advice: 'Add author credentials, citations, and expert quotes to boost authority signals' },
     { name: 'structure', score: llmPresence.structure, advice: 'Improve content structure with clear headings, bullet lists, and summary sections' },
     { name: 'snippetQuality', score: llmPresence.snippetQuality, advice: 'Optimize meta description and opening paragraph for concise, informative snippets' }

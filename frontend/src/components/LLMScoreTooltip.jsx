@@ -10,7 +10,7 @@ import Tooltip from './Tooltip';
 const SCORE_WEIGHTS = {
   freshness: { weight: 0.20, name: 'Freshness' },
   answerability: { weight: 0.25, name: 'Answerability' },
-  queryAlignment: { weight: 0.20, name: 'Query Alignment' },
+  queryAlignment: { weight: 0.20, name: 'Natural Language Fit' },
   authority: { weight: 0.15, name: 'Authority' },
   structure: { weight: 0.12, name: 'Structure' },
   snippetQuality: { weight: 0.08, name: 'Snippet Quality' }
@@ -19,7 +19,7 @@ const SCORE_WEIGHTS = {
 // Factor descriptions
 const FACTOR_DETAILS = {
   freshness: {
-    description: 'Measures content recency and update frequency',
+    description: 'How recent and up-to-date your content appears',
     factors: [
       'Publication date',
       'Last modified date',
@@ -28,7 +28,7 @@ const FACTOR_DETAILS = {
     ]
   },
   answerability: {
-    description: 'How directly content answers user questions',
+    description: 'How directly your content answers user questions',
     factors: [
       'Clear answers to questions',
       'Direct problem solutions',
@@ -37,16 +37,16 @@ const FACTOR_DETAILS = {
     ]
   },
   queryAlignment: {
-    description: 'Matches common search queries and intent',
+    description: 'How conversationally your content flows for LLMs',
     factors: [
-      'Keyword relevance',
-      'Search intent alignment',
       'Natural language patterns',
-      'Topic authority'
+      'Conversational tone',
+      'Snippet-worthy sentences',
+      'Question-based content'
     ]
   },
   authority: {
-    description: 'Trust and credibility signals',
+    description: 'Trust signals and credibility indicators on your page',
     factors: [
       'Author expertise',
       'Citations and references',
@@ -55,7 +55,7 @@ const FACTOR_DETAILS = {
     ]
   },
   structure: {
-    description: 'Content organization for AI consumption',
+    description: 'How well-organized your content is for AI parsing',
     factors: [
       'Clear headings hierarchy',
       'Logical content flow',
@@ -64,7 +64,7 @@ const FACTOR_DETAILS = {
     ]
   },
   snippetQuality: {
-    description: 'Optimization for featured snippets',
+    description: 'How optimized your content is for featured snippets',
     factors: [
       'Concise answers',
       'List formatting',
@@ -75,15 +75,25 @@ const FACTOR_DETAILS = {
 };
 
 function LLMScoreTooltip({ metric, value }) {
-  // Convert "Query Alignment" -> "queryAlignment", "Snippet Quality" -> "snippetQuality"
-  const metricKey = metric
-    .split(' ')
-    .map((word, index) => 
-      index === 0 
-        ? word.toLowerCase() 
-        : word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
-    )
-    .join('');
+  // Special mapping for renamed metrics
+  const metricKeyMap = {
+    'Natural Language Fit': 'queryAlignment'
+  };
+  
+  // Check if we have a special mapping, otherwise convert automatically
+  let metricKey = metricKeyMap[metric];
+  
+  if (!metricKey) {
+    // Convert "Snippet Quality" -> "snippetQuality", "Freshness" -> "freshness", etc.
+    metricKey = metric
+      .split(' ')
+      .map((word, index) => 
+        index === 0 
+          ? word.toLowerCase() 
+          : word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+      )
+      .join('');
+  }
   
   const weight = SCORE_WEIGHTS[metricKey];
   const factorInfo = FACTOR_DETAILS[metricKey];

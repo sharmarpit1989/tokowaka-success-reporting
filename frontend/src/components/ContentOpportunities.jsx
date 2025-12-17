@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react';
 import {
   Lightbulb, TrendingUp, Target, Sparkles,
-  RefreshCw, Info, AlertCircle, CheckCircle, FileText, List, Table,
-  BarChart3, Users, Zap, ChevronRight, ExternalLink, Clock, Database
+  RefreshCw, Info, AlertCircle, Zap, ChevronRight, ExternalLink
 } from 'lucide-react';
 import SkeletonLoader from './SkeletonLoader';
 
@@ -163,10 +162,6 @@ function ContentOpportunities({ projectId }) {
                 </div>
               )}
 
-              {/* Content Structure Insights - Also Collapsible */}
-              {data.contentPatterns && (
-                <ContentStructureInsights patterns={data.contentPatterns} />
-              )}
             </>
           ) : (
             <EmptyState onLoad={loadOpportunities} />
@@ -580,61 +575,6 @@ function RecommendationCard({ recommendation, index }) {
           </div>
         )}
       </div>
-    </div>
-  );
-}
-
-// Content Structure Insights
-function ContentStructureInsights({ patterns }) {
-  if (!patterns.highPerforming || !patterns.lowPerforming) {
-    return null;
-  }
-
-  return (
-    <div className="border-t-2 border-gray-200 pt-6">
-      <h4 className="font-semibold text-gray-900 flex items-center gap-2 mb-4">
-        <BarChart3 className="w-5 h-5 text-blue-600" />
-        Content Structure Analysis
-      </h4>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* High Performing */}
-        <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-          <h5 className="font-bold text-green-900 mb-3 flex items-center gap-2">
-            <CheckCircle className="w-5 h-5" />
-            High-Performing Content
-          </h5>
-          <div className="space-y-2 text-sm">
-            <StructureMetric label="Has Comparisons" value={patterns.highPerforming.comparisonRate} />
-            <StructureMetric label="Has Lists" value={patterns.highPerforming.listRate} />
-            <StructureMetric label="Has Steps" value={patterns.highPerforming.stepRate} />
-            <StructureMetric label="Has Examples" value={patterns.highPerforming.exampleRate} />
-          </div>
-        </div>
-
-        {/* Low Performing */}
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-          <h5 className="font-bold text-red-900 mb-3 flex items-center gap-2">
-            <AlertCircle className="w-5 h-5" />
-            Low-Performing Content
-          </h5>
-          <div className="space-y-2 text-sm">
-            <StructureMetric label="Has Comparisons" value={patterns.lowPerforming.comparisonRate} />
-            <StructureMetric label="Has Lists" value={patterns.lowPerforming.listRate} />
-            <StructureMetric label="Has Steps" value={patterns.lowPerforming.stepRate} />
-            <StructureMetric label="Has Examples" value={patterns.lowPerforming.exampleRate} />
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function StructureMetric({ label, value }) {
-  return (
-    <div className="flex items-center justify-between">
-      <span className="text-gray-700">{label}:</span>
-      <span className="font-bold text-gray-900">{value}%</span>
     </div>
   );
 }

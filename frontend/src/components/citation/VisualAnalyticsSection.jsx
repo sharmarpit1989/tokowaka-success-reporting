@@ -155,7 +155,21 @@ function VisualAnalyticsSection({ citationData, selectedWeeks, selectedUrls }) {
     indexAxis: 'y',
     plugins: {
       ...chartOptions.plugins,
-      legend: { display: false }
+      legend: { display: false },
+      tooltip: {
+        ...chartOptions.plugins.tooltip,
+        callbacks: {
+          label: function(context) {
+            let label = context.dataset.label || ''
+            if (label) label += ': '
+            // For horizontal bars (indexAxis: 'y'), value is in context.parsed.x
+            if (context.parsed.x !== null) {
+              label += context.parsed.x + '%'
+            }
+            return label
+          }
+        }
+      }
     },
     scales: {
       x: {

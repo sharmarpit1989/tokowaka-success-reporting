@@ -2,7 +2,7 @@
 
 ## 📖 Overview
 
-This guide provides a complete visual walkthrough of how the AI Visibility Dashboard works, from initial setup to actionable insights. Follow this flowchart to understand the end-to-end process.
+This guide provides a complete visual walkthrough of how the AI Visibility Dashboard works, from initial setup to actionable insights. The dashboard combines **content optimization analysis** with **citation performance tracking** in a unified web platform.
 
 ---
 
@@ -14,31 +14,43 @@ This guide provides a complete visual walkthrough of how the AI Visibility Dashb
 │                         Complete Workflow                         │
 └─────────────────────────────────────────────────────────────────┘
 
-Step 1: Project Setup
+Step 1: Project Setup (Upload URLs)
    ↓
-Step 2: Upload Target URLs
+Step 2: Upload Brand Presence Data (Citations)
    ↓
-Step 3: Upload Brand Presence Data
+Step 3: Content Analysis (Batch or Individual)
    ↓
-Step 4: Content Analysis
+Step 4: Generate AI Insights
    ↓
-Step 5: Generate AI Insights
+Step 5: View Analytics & Reports
+   ├──→ AI Visibility Dashboard
+   ├──→ Citation Performance
+   └──→ Trends & Insights (Content Opportunities)
    ↓
-Step 6: View Analytics & Reports
-   ↓
-Step 7: Optimize & Iterate
+Step 6: Optimize & Iterate
 ```
 
 ---
 
 ## 📋 Detailed Workflow
 
-### Step 1: Project Setup
+### Step 1: Project Setup & URL Upload
 
 **What happens:**
-- Create a new project
-- Define your domain
-- Set project name
+- Create a new project by uploading a URL file
+- System extracts and validates URLs
+- Project automatically created with URLs
+
+**File format (CSV or Excel):**
+```csv
+url
+https://lovesac.com/sactionals
+https://lovesac.com/products/best-seller
+https://lovesac.com/designed-for-life
+...
+```
+
+**Supported column names:** url, urls, link, or links
 
 **User actions:**
 ```
@@ -52,12 +64,25 @@ Step 7: Optimize & Iterate
 └──────────────┬──────────────────────┘
                ↓
 ┌─────────────────────────────────────┐
-│  3. Click "Create Project"          │
+│  3. Upload URL file (CSV/Excel)     │
+│     - Drag & drop OR click to browse│
+│     - File parsed automatically     │
 └──────────────┬──────────────────────┘
                ↓
 ┌─────────────────────────────────────┐
-│  ✅ Project created with unique ID  │
-│     Status: "pending"               │
+│  4. System validates & creates      │
+│     - Extracts URLs from file       │
+│     - Validates format              │
+│     - Removes duplicates            │
+│     - Creates project               │
+└──────────────┬──────────────────────┘
+               ↓
+┌─────────────────────────────────────┐
+│  ✅ Project created with URLs       │
+│     Project ID: abc-123-def         │
+│     Count: 15 URLs                  │
+│     Status: "ready_for_citations"   │
+│     Auto-saved to browser storage   │
 └─────────────────────────────────────┘
 ```
 
@@ -67,81 +92,27 @@ Step 7: Optimize & Iterate
 {
   "id": "abc-123-def",
   "domain": "lovesac.com",
-  "status": "pending",
-  "urls": [],
-  "createdAt": "2025-12-13T10:00:00Z"
-}
-```
-
----
-
-### Step 2: Upload Target URLs
-
-**What happens:**
-- Upload a CSV or TXT file with URLs you want to track
-- System validates URLs
-- URLs are added to your project
-
-**File format:**
-```csv
-URL
-https://lovesac.com/sactionals
-https://lovesac.com/products/best-seller
-https://lovesac.com/designed-for-life
-...
-```
-
-**User actions:**
-```
-┌──────────────────────────────────────┐
-│  1. Click "Upload Target URLs"       │
-└──────────────┬───────────────────────┘
-               ↓
-┌──────────────────────────────────────┐
-│  2. Select CSV/TXT file              │
-│     (Must have "URL" column/header)  │
-└──────────────┬───────────────────────┘
-               ↓
-┌──────────────────────────────────────┐
-│  3. System parses file               │
-│     - Validates URLs                 │
-│     - Removes duplicates             │
-│     - Checks format                  │
-└──────────────┬───────────────────────┘
-               ↓
-┌──────────────────────────────────────┐
-│  ✅ URLs added to project            │
-│     Count: 15 URLs                   │
-│     Status: "ready_for_citations"    │
-└──────────────────────────────────────┘
-```
-
-**Backend process:**
-```javascript
-// Updates unified-{projectId}.json
-{
-  "id": "abc-123-def",
-  "domain": "lovesac.com",
   "status": "ready_for_citations",
   "urls": [
     "https://lovesac.com/sactionals",
     "https://lovesac.com/products/best-seller",
-    // ... more URLs
+    // ... more URLs (typically 10-50)
   ],
-  "uploadedAt": "2025-12-13T10:05:00Z"
+  "createdAt": "2025-12-17T10:00:00Z",
+  "urlCount": 15
 }
 ```
 
 ---
 
-### Step 3: Upload Brand Presence Data
+### Step 2: Upload Brand Presence Data
 
 **What happens:**
-- Upload Excel file with AI citation data
-- System processes citation metrics
+- Upload one or multiple Excel files with AI citation data (up to 50 files)
+- System processes all files and combines data
 - Calculates citation rates per URL, platform, and week
 
-**File format (Excel/CSV):**
+**File format (Excel only - .xlsx or .xls):**
 ```
 | Week | Platform      | Prompt              | URL | sources                          |
 |------|---------------|---------------------|-----|----------------------------------|
@@ -152,24 +123,31 @@ https://lovesac.com/designed-for-life
 
 **Important:** The tool looks for target URLs in the **"sources"** column, not the "URL" column.
 
+**Multi-file support:** You can upload multiple Excel files at once (e.g., separate files per week, platform, or AI mode). The system automatically combines and processes all data.
+
 **User actions:**
 ```
 ┌──────────────────────────────────────────┐
 │  1. Click "Upload Brand Presence Data"   │
+│     (Appears after URLs are loaded)      │
 └──────────────┬───────────────────────────┘
                ↓
 ┌──────────────────────────────────────────┐
-│  2. Select Excel file (.xlsx)            │
+│  2. Select Excel file(s) (.xlsx/.xls)   │
+│     Can upload up to 50 files at once   │
+│                                           │
 │     Required columns:                    │
-│     - Week (e.g., "w48")                 │
+│     - Week (e.g., "w48", "w49")          │
 │     - Platform (e.g., "chatgpt-paid")    │
 │     - Prompt (user's query)              │
 │     - sources (URLs cited by AI)         │
 └──────────────┬───────────────────────────┘
                ↓
 ┌──────────────────────────────────────────┐
-│  3. System processes file                │
-│     Backend job started...               │
+│  3. System processes file(s)             │
+│     - Uploads all files to backend       │
+│     - Generates unique jobId             │
+│     - Returns immediately (async)        │
 └──────────────┬───────────────────────────┘
                ↓
       ┌────────┴────────┐
@@ -177,26 +155,30 @@ https://lovesac.com/designed-for-life
 ┌──────────┐    ┌──────────────┐
 │ Parsing  │    │  Validation  │
 │ Excel    │    │  - Columns   │
-│ File     │    │  - Format    │
+│ Files    │    │  - Format    │
+│ (all)    │    │  - Combining │
 └────┬─────┘    └──────┬───────┘
      ↓                 ↓
 ┌─────────────────────────────────────┐
 │  4. Citation rate calculation       │
-│     For each URL:                   │
+│     For each URL × Week × Platform: │
 │     - Count unique prompts          │
 │     - Count prompts with citation   │
 │     - Calculate: cited/total × 100  │
+│     - Generate trend data           │
 └──────────────┬──────────────────────┘
                ↓
 ┌──────────────────────────────────────┐
 │  5. Save citation data               │
-│     Creates: citations-{jobId}.json  │
+│     Creates: {jobId}-citations.json  │
+│     Links to project via jobId       │
 └──────────────┬──────────────────────┘
                ↓
 ┌──────────────────────────────────────┐
 │  ✅ Brand presence data processed    │
+│     Dashboard refreshes automatically│
+│     Citation rates visible           │
 │     Status: "completed"              │
-│     Ready for analysis               │
 └──────────────────────────────────────┘
 ```
 
@@ -222,13 +204,13 @@ This repeats for:
 
 **Backend process:**
 ```javascript
-// Creates citations-{jobId}.json
+// Creates {jobId}-citations.json
 {
   "domain": "lovesac.com",
   "targetUrls": [
     "https://lovesac.com/sactionals",
     "https://lovesac.com/products/best-seller",
-    // ... 15 URLs
+    // ... all tracked URLs
   ],
   "citationRates": [
     {
@@ -240,11 +222,24 @@ This repeats for:
       "selectedUrlRate": 0.15,  // 15%
       "type": "url_specific"
     },
-    // ... more entries
+    {
+      "week": "w48",
+      "platform": "chatgpt-paid",
+      "totalPrompts": 500,
+      "citedPrompts": 87,
+      "domainRate": 0.174,  // 17.4%
+      "type": "summary"
+    },
+    // ... more entries for all weeks/platforms/URLs
   ],
   "combinedData": [
-    // Raw data from Excel (1000+ rows)
-  ]
+    // Raw prompt data from all Excel files combined
+    { week: "w48", platform: "chatgpt-paid", prompt: "...", sources: "..." },
+    // ... 1000+ rows
+  ],
+  "status": "completed",
+  "processedAt": "2025-12-17T10:15:00Z",
+  "fileCount": 5  // Number of Excel files processed
 }
 ```
 
@@ -261,48 +256,75 @@ completed ✅
 
 ---
 
-### Step 4: Content Analysis
+### Step 3: Content Analysis
 
 **What happens:**
-- System scrapes each target URL
+- System scrapes target URLs (individually or in batch)
 - Analyzes content using LLM Presence Tracker
-- Calculates 6 key scores
-- Generates AI prompts
+- Calculates 6 key scores per URL
+- Generates AI-recommended prompts per page
 
-**User actions:**
+**Two analysis modes:**
+
+#### Mode A: Individual URL Analysis
 ```
 ┌──────────────────────────────────────┐
-│  1. Click "Analyze this URL" button  │
+│  1. Click "Analyze" button           │
 │     (Next to any URL in dashboard)   │
 └──────────────┬───────────────────────┘
                ↓
 ┌──────────────────────────────────────┐
-│  2. Frontend shows "Analyzing..."    │
-│     Progress indicator appears       │
+│  2. Real-time progress updates       │
+│     - Loading page...                │
+│     - Analyzing content...           │
+│     - Calculating scores...          │
+│     Progress: 33% → 66% → 100%      │
 └──────────────┬───────────────────────┘
                ↓
 ┌──────────────────────────────────────┐
-│  3. Backend job started              │
-│     Job ID created: job-xyz-789      │
-└──────────────┬───────────────────────┘
-               ↓
-        ┌──────┴───────┐
-        ↓              ↓
-   ┌─────────┐   ┌──────────┐
-   │ Status  │   │ Frontend │
-   │ polling │   │ polls    │
-   │ every   │   │ every    │
-   │ 2s      │   │ 2s       │
-   └─────────┘   └──────────┘
-        ↓              ↓
-┌──────────────────────────────────────┐
-│  4. Analysis completes (~15-30s)     │
-│     Results saved                    │
+│  3. Analysis completes (~5-8s)       │
+│     Results appear immediately       │
 └──────────────┬───────────────────────┘
                ↓
 ┌──────────────────────────────────────┐
-│  ✅ Content analysis ready           │
-│     Shows scores on dashboard        │
+│  ✅ Scores visible & expanded        │
+│     LLM Presence: 68%                │
+│     6 metric scores displayed        │
+└──────────────────────────────────────┘
+```
+
+#### Mode B: Batch Analysis
+```
+┌──────────────────────────────────────┐
+│  1. Select multiple URLs (checkboxes)│
+│     - Click checkboxes next to URLs  │
+│     - "Select All" option available  │
+└──────────────┬───────────────────────┘
+               ↓
+┌──────────────────────────────────────┐
+│  2. Click "Analyze Selected (5)"     │
+│     Configure batch settings:        │
+│     - Delay between analyses: 5s     │
+│     - Sequential processing          │
+└──────────────┬───────────────────────┘
+               ↓
+┌──────────────────────────────────────┐
+│  3. Batch processing starts          │
+│     Progress: 1/5 → 2/5 → 3/5...    │
+│     Each URL analyzed sequentially   │
+│     Current: analyzing URL #2...     │
+└──────────────┬───────────────────────┘
+               ↓
+┌──────────────────────────────────────┐
+│  4. Completion notification          │
+│     "✅ 5 URLs analyzed successfully" │
+│     Toast notification appears       │
+└──────────────┬───────────────────────┘
+               ↓
+┌──────────────────────────────────────┐
+│  ✅ All selected URLs analyzed       │
+│     Dashboard updated with scores    │
+│     Can now generate insights        │
 └──────────────────────────────────────┘
 ```
 
@@ -437,45 +459,96 @@ completed ✅
 
 ---
 
-### Step 5: Generate AI Insights
+### Step 4: Generate AI Insights
 
 **What happens:**
 - Uses Azure OpenAI to generate personalized recommendations
-- Based on content analysis scores
-- Tailored to specific page and weaknesses
+- Three types of AI insights available
+- Tailored to specific context and data
 
-**User actions:**
+**Three types of AI recommendations:**
+
+#### Type A: Per-URL Insights (AI Visibility Dashboard)
 ```
 ┌────────────────────────────────────────┐
-│  1. Click "Generate AI Insights Now"   │
-│     (Appears after content analysis)   │
+│  1. Expand analyzed URL row            │
+│     Click "Generate AI Insights"       │
 └──────────────┬─────────────────────────┘
                ↓
 ┌────────────────────────────────────────┐
-│  2. System calls Azure OpenAI          │
-│     Using GPT-4o model                 │
+│  2. Azure OpenAI analyzes URL          │
+│     Input: LLM scores + page content   │
+│     Model: GPT-4o                      │
 └──────────────┬─────────────────────────┘
                ↓
 ┌────────────────────────────────────────┐
-│  3. AI analyzes:                       │
-│     - Current scores                   │
-│     - Page content                     │
-│     - Industry context                 │
-│     - Best practices                   │
+│  3. Generates 5 URL-specific actions   │
+│     Focus: Weakest metrics             │
+│     - Add FAQ section → +12% answer.   │
+│     - Update dates → +8% freshness     │
+│     - Add structured data → +6% struct │
 └──────────────┬─────────────────────────┘
                ↓
 ┌────────────────────────────────────────┐
-│  4. Generates 5 recommendations        │
-│     Each with:                         │
-│     - Title                            │
-│     - Description                      │
-│     - Impact assessment                │
-│     - Implementation steps             │
+│  ✅ Insights shown in expanded row     │
+│     Cached per URL (instant on reload) │
+└────────────────────────────────────────┘
+```
+
+#### Type B: Dashboard-Level Recommendations
+```
+┌────────────────────────────────────────┐
+│  1. Click "Generate AI Recommendations"│
+│     (Top of AI Visibility dashboard)   │
 └──────────────┬─────────────────────────┘
                ↓
 ┌────────────────────────────────────────┐
-│  ✅ Insights displayed on dashboard    │
-│     Cached for quick access            │
+│  2. Azure OpenAI analyzes all URLs     │
+│     Input: All analyzed pages + scores │
+│     Strategy: Portfolio-level insights │
+└──────────────┬─────────────────────────┘
+               ↓
+┌────────────────────────────────────────┐
+│  3. Generates strategic recommendations│
+│     - Which pages to prioritize        │
+│     - Common issues across site        │
+│     - Quick wins vs. long-term fixes   │
+└──────────────┬─────────────────────────┘
+               ↓
+┌────────────────────────────────────────┐
+│  ✅ Recommendations in expandable panel│
+└────────────────────────────────────────┘
+```
+
+#### Type C: Content Opportunity Insights (Trends & Insights page)
+```
+┌────────────────────────────────────────┐
+│  1. Navigate to "Trends & Insights"    │
+│     Auto-loads when project has data   │
+└──────────────┬─────────────────────────┘
+               ↓
+┌────────────────────────────────────────┐
+│  2. System analyzes prompt patterns    │
+│     - 1000+ user queries analyzed      │
+│     - Themes identified (pricing, etc.)│
+│     - Content gaps detected            │
+└──────────────┬─────────────────────────┘
+               ↓
+┌────────────────────────────────────────┐
+│  3. Azure OpenAI generates insights    │
+│     Input: Prompts + URL analysis      │
+│     Strategy: Content opportunities    │
+│     - New pages needed                 │
+│     - Existing pages to improve        │
+│     - Validated against site structure │
+└──────────────┬─────────────────────────┘
+               ↓
+┌────────────────────────────────────────┐
+│  ✅ Full opportunity analysis shown    │
+│     - Themes (5-10 identified)         │
+│     - AI recommendations (8-12)        │
+│     - Each with priority & validation  │
+│     Cached to disk (instant on reload) │
 └────────────────────────────────────────┘
 ```
 
@@ -603,165 +676,274 @@ Generate 5 recommendations following this format:
 
 ---
 
-### Step 6: View Analytics & Reports
+### Step 5: View Analytics & Reports
 
 **What you can see:**
-Multiple views provide different insights into your AI visibility performance.
+Three main dashboards provide comprehensive insights into your AI visibility performance.
 
-#### 6A: AI Visibility Dashboard
+#### 5A: AI Visibility Dashboard (Main View)
 ```
 ┌─────────────────────────────────────────────────┐
 │           AI VISIBILITY DASHBOARD               │
 ├─────────────────────────────────────────────────┤
 │                                                 │
-│  Project: lovesac.com                          │
-│  15 URLs tracked                               │
-│  Status: ✅ Completed                          │
+│  🏠 Project: lovesac.com                       │
+│  📋 15 URLs tracked  •  🔍 8 analyzed          │
+│  💾 Auto-saved • Last update: 2 min ago        │
+│                                                 │
+│  ┌───────────────────────────────────────┐    │
+│  │  Quick Actions                        │    │
+│  ├───────────────────────────────────────┤    │
+│  │  [🤖 Generate AI Recommendations]     │    │
+│  │  [📊 View Citation Performance]       │    │
+│  │  [🎯 View Trends & Insights]          │    │
+│  └───────────────────────────────────────┘    │
 │                                                 │
 │  ┌───────────────────────────────────────┐    │
 │  │  Summary Cards (Top Section)          │    │
 │  ├───────────────────────────────────────┤    │
-│  │  📊 Average Citation Rate: 18.2%      │    │
-│  │  🎯 LLM Presence Score: 68%          │    │
-│  │  📈 Best Performer: /sactionals       │    │
-│  │  ⚠️  Needs Attention: /blog/post      │    │
+│  │  📊 Avg Citation Rate: 18.2%          │    │
+│  │  🎯 Avg LLM Presence: 68%            │    │
+│  │  ✅ URLs with Citations: 12/15        │    │
+│  │  🔍 Analyzed URLs: 8/15               │    │
 │  └───────────────────────────────────────┘    │
 │                                                 │
 │  ┌───────────────────────────────────────┐    │
-│  │  URLs List (Main Section)             │    │
+│  │  Controls & Filters                   │    │
 │  ├───────────────────────────────────────┤    │
-│  │  URL 1: /sactionals                   │    │
-│  │  ├─ Citation Rate: 22% ✅            │    │
-│  │  ├─ LLM Score: 72% (Good)            │    │
-│  │  ├─ [View Analysis] [Generate Insights]│   │
-│  │  └─ Scores: F:80% A:68% Q:65%...     │    │
-│  │                                        │    │
-│  │  URL 2: /products/best-seller         │    │
-│  │  ├─ Citation Rate: 18% ✅            │    │
-│  │  ├─ LLM Score: 65% (Good)            │    │
-│  │  └─ ...                               │    │
-│  │                                        │    │
-│  │  [+ 13 more URLs]                     │    │
+│  │  Sort by: [Citation Rate ▼]          │    │
+│  │  [☑ Select All] [Analyze Selected (5)]│    │
+│  │  Page: [< 1 of 1 >]  (20 per page)   │    │
 │  └───────────────────────────────────────┘    │
 │                                                 │
 │  ┌───────────────────────────────────────┐    │
-│  │  Expanded URL View (when clicked)     │    │
+│  │  URLs Table (Collapsible Rows)       │    │
 │  ├───────────────────────────────────────┤    │
-│  │  🎯 LLM Presence Metrics              │    │
-│  │  ├─ Freshness: 75% [?] tooltip       │    │
-│  │  ├─ Answerability: 62% [?]           │    │
-│  │  ├─ Query Alignment: 58% [?]         │    │
-│  │  ├─ Authority: 70% [?]               │    │
-│  │  ├─ Structure: 65% [?]               │    │
-│  │  └─ Snippet Quality: 72% [?]         │    │
+│  │  [☑] /sactionals                      │    │
+│  │  Citation: 22% • LLM: 72% • [Analyze]│    │
+│  │  [▼] Expand for details...           │    │
 │  │                                        │    │
-│  │  💡 AI Recommendations (5 items)      │    │
-│  │  1. Add question-based headings...    │    │
-│  │  2. Improve conversational tone...    │    │
-│  │  3. Add FAQ section...               │    │
-│  │  4. Update meta description...        │    │
-│  │  5. Include current year...          │    │
+│  │  ├─ When Expanded ─────────────────┐ │    │
+│  │  │  🎯 LLM Presence Metrics:        │ │    │
+│  │  │  • Freshness: 75% [ℹ️]           │ │    │
+│  │  │  • Answerability: 62% [ℹ️]       │ │    │
+│  │  │  • Query Alignment: 58% ⚠️ [ℹ️]  │ │    │
+│  │  │  • Authority: 70% [ℹ️]           │ │    │
+│  │  │  • Structure: 65% [ℹ️]           │ │    │
+│  │  │  • Snippet Quality: 72% [ℹ️]     │ │    │
+│  │  │                                   │ │    │
+│  │  │  [✨ Generate AI Insights]        │ │    │
+│  │  │                                   │ │    │
+│  │  │  💡 AI Recommendations (5):       │ │    │
+│  │  │  1. Add question-based H2s        │ │    │
+│  │  │     Impact: +15% query alignment  │ │    │
+│  │  │  2. Update to 2025 data           │ │    │
+│  │  │     Impact: +20% freshness        │ │    │
+│  │  │  ... (3 more)                     │ │    │
+│  │  │                                   │ │    │
+│  │  │  📝 AI-Generated Prompts:         │ │    │
+│  │  │  Awareness (3 questions)          │ │    │
+│  │  │  Consideration (4 questions)      │ │    │
+│  │  │  Conversion (3 questions)         │ │    │
+│  │  └───────────────────────────────────┘ │    │
 │  │                                        │    │
-│  │  📝 AI-Generated Prompts              │    │
-│  │  Awareness:                           │    │
-│  │  - "What is a Sactional?"            │    │
-│  │  Consideration:                       │    │
-│  │  - "How much does Sactional cost?"   │    │
-│  │  Conversion:                          │    │
-│  │  - "Where to buy Sactionals?"        │    │
+│  │  [☑] /products/best-seller            │    │
+│  │  Citation: 18% • LLM: 65% • [Analyze]│    │
+│  │  [▶] Click to expand...              │    │
+│  │                                        │    │
+│  │  [+ 13 more URLs with pagination]     │    │
 │  └───────────────────────────────────────┘    │
 └─────────────────────────────────────────────────┘
 ```
 
-#### 6B: Citation Performance Page
+#### 5B: Citation Performance Page
 ```
 ┌─────────────────────────────────────────────────┐
 │         CITATION PERFORMANCE DASHBOARD          │
 ├─────────────────────────────────────────────────┤
 │                                                 │
+│  📊 Standalone or linked from AI Visibility    │
+│  Can upload data independently without project │
+│                                                 │
+│  ┌───────────────────────────────────────┐    │
+│  │  Upload Options (Step 1 if new)      │    │
+│  ├───────────────────────────────────────┤    │
+│  │  Option A: Upload URLs + Citations    │    │
+│  │  • Drag & drop URL file               │    │
+│  │  • Then drag & drop citation files    │    │
+│  │                                        │    │
+│  │  Option B: Use Active Project         │    │
+│  │  • Load from AI Visibility project    │    │
+│  └───────────────────────────────────────┘    │
+│                                                 │
 │  ┌───────────────────────────────────────┐    │
 │  │  Summary Cards                        │    │
 │  ├───────────────────────────────────────┤    │
-│  │  Overall: 18.2%  |  Domain: 24.5%    │    │
+│  │  Overall Avg: 18.2%                   │    │
+│  │  Domain Rate: 24.5%                   │    │
 │  │  Best Week: w50 (22%)                │    │
 │  │  Worst Week: w47 (12%)               │    │
+│  │  Total Prompts: 2,340                │    │
 │  └───────────────────────────────────────┘    │
 │                                                 │
 │  ┌───────────────────────────────────────┐    │
-│  │  Filters (Collapsible)                │    │
-│  ├───────────────────────────────────────┤    │
-│  │  📅 Weeks: [w48] [w49] [w50]         │    │
-│  │  🔗 URLs: 15 total • 12 with citations│   │
-│  │          [Select URLs...]             │    │
+│  │  [🤖 Generate AI Recommendations]     │    │
+│  │  Context-aware insights based on data │    │
 │  └───────────────────────────────────────┘    │
 │                                                 │
 │  ┌───────────────────────────────────────┐    │
-│  │  📊 Visual Analytics (Charts)         │    │
+│  │  Filters & Settings (Collapsible)    │    │
 │  ├───────────────────────────────────────┤    │
+│  │  📅 Weeks: [All] [w48] [w49] [w50]   │    │
+│  │  🔗 URLs: [Select specific URLs...]  │    │
+│  │  📊 Charts: [Show/Hide]              │    │
+│  └───────────────────────────────────────┘    │
+│                                                 │
+│  ┌───────────────────────────────────────┐    │
+│  │  📈 Visual Analytics (4 Charts)       │    │
+│  ├───────────────────────────────────────┤    │
+│  │  1. Weekly Trend (line chart)         │    │
+│  │     Citation % over time              │    │
 │  │                                        │    │
-│  │  📈 Weekly Citation Trend             │    │
-│  │  [Line chart showing trend over time] │    │
+│  │  2. Platform Comparison (bar chart)   │    │
+│  │     ChatGPT, Perplexity, etc.         │    │
 │  │                                        │    │
-│  │  📊 Platform Performance              │    │
-│  │  [Bar chart by platform]              │    │
+│  │  3. URL Performance (doughnut)        │    │
+│  │     High/Medium/Low/None tiers        │    │
 │  │                                        │    │
-│  │  🥧 URL Performance Distribution      │    │
-│  │  [Doughnut chart of tiers]            │    │
-│  │                                        │    │
-│  │  📊 URL Comparison (when filtered)    │    │
-│  │  [Multi-line chart comparing URLs]    │    │
+│  │  4. URL Comparison (multi-line)       │    │
+│  │     When specific URLs filtered       │    │
 │  └───────────────────────────────────────┘    │
 │                                                 │
 │  ┌───────────────────────────────────────┐    │
 │  │  Platform Performance Cards           │    │
 │  ├───────────────────────────────────────┤    │
-│  │  ChatGPT-Paid: 15% (120 prompts)     │    │
-│  │  Perplexity: 23% (85 prompts)        │    │
-│  │  Claude: 12% (45 prompts)            │    │
-│  │  [+ more platforms]                   │    │
+│  │  🤖 ChatGPT: 15.2% (852 prompts)     │    │
+│  │  🔮 Perplexity: 23.4% (634 prompts)  │    │
+│  │  🧠 Claude: 12.1% (298 prompts)      │    │
+│  │  💎 Gemini: 18.7% (421 prompts)      │    │
+│  │  [+ Google AI Overviews, Copilot]    │    │
 │  └───────────────────────────────────────┘    │
 │                                                 │
 │  ┌───────────────────────────────────────┐    │
-│  │  Detailed Citation Data Table         │    │
+│  │  Detailed Data Table (Sortable)      │    │
 │  ├───────────────────────────────────────┤    │
-│  │  Week | Platform | URL | Rate | Trend│    │
-│  │  w50  | chatgpt  | /s  | 18%  | ↗️   │    │
-│  │  w50  | perplex  | /s  | 25%  | ↗️   │    │
-│  │  [+ 50 more rows, paginated]         │    │
+│  │  Week | Platform | URL | Rate | Cited│    │
+│  │  w50  | chatgpt  | /s  | 18%  | 15/83│    │
+│  │  w50  | perplex  | /s  | 25%  | 18/72│    │
+│  │  [+ Paginated, 20 per page]          │    │
 │  └───────────────────────────────────────┘    │
 └─────────────────────────────────────────────────┘
 ```
 
-#### 6C: Projects Page
+#### 5C: Trends & Insights Page (NEW! 🎉)
 ```
 ┌─────────────────────────────────────────────────┐
-│              PROJECTS DASHBOARD                 │
+│            TRENDS & INSIGHTS DASHBOARD          │
 ├─────────────────────────────────────────────────┤
 │                                                 │
-│  [+ Create New Project]  [🔄 Refresh]          │
+│  💡 Discover content opportunities based on     │
+│     prompt patterns and citation data           │
+│                                                 │
+│  ⚡ Requires: Project with citation data        │
+│  ✨ Enhanced with URL analysis data (optional)  │
 │                                                 │
 │  ┌───────────────────────────────────────┐    │
-│  │  Project 1: lovesac.com               │    │
-│  │  ├─ Status: ✅ Completed              │    │
-│  │  ├─ URLs: 15 tracked                  │    │
-│  │  ├─ Citation Data: ✅ Uploaded        │    │
-│  │  ├─ Content Analysis: 12/15 complete  │    │
-│  │  └─ Last updated: 2 hours ago         │    │
-│  │  [Click to view →]                    │    │
+│  │  [🔄 Load Opportunities]  [♻️ Regenerate]│  │
+│  │  Status: ✅ Analysis complete          │    │
+│  │  Generated: 2 min ago (cached)         │    │
 │  └───────────────────────────────────────┘    │
 │                                                 │
 │  ┌───────────────────────────────────────┐    │
-│  │  Project 2: example.com               │    │
-│  │  ├─ Status: ⚠️  Processing            │    │
-│  │  ├─ URLs: 8 tracked                   │    │
-│  │  └─ ...                               │    │
+│  │  Summary Stats                        │    │
+│  ├───────────────────────────────────────┤    │
+│  │  📊 1,243 Unique Prompts Analyzed     │    │
+│  │  🎯 8 Themes Identified               │    │
+│  │  💡 12 AI Recommendations Generated   │    │
+│  │  ✅ Validated Against 8 Analyzed URLs │    │
+│  └───────────────────────────────────────┘    │
+│                                                 │
+│  ┌───────────────────────────────────────┐    │
+│  │  🎨 Prompt Themes (Collapsible)       │    │
+│  ├───────────────────────────────────────┤    │
+│  │  [▼] Theme 1: Pricing Questions       │    │
+│  │      • 187 prompts (15% of total)     │    │
+│  │      • Citation rate: 12.3% ⚠️        │    │
+│  │      • Funnel: Consideration           │    │
+│  │      • Top cited: /pricing (8.2%)     │    │
+│  │      • Sample prompts:                │    │
+│  │        - "How much does X cost?"      │    │
+│  │        - "What are the pricing tiers?"│    │
+│  │                                        │    │
+│  │  [▶] Theme 2: Product Comparisons     │    │
+│  │      • 142 prompts (11% of total)     │    │
+│  │      • Citation rate: 18.1% ✅        │    │
+│  │                                        │    │
+│  │  [▶] Theme 3: Setup Guides            │    │
+│  │  [▶] Theme 4: Troubleshooting         │    │
+│  │  [+ 4 more themes]                    │    │
+│  └───────────────────────────────────────┘    │
+│                                                 │
+│  ┌───────────────────────────────────────┐    │
+│  │  🤖 AI Content Recommendations        │    │
+│  ├───────────────────────────────────────┤    │
+│  │  [Show All (12)] [Filter by Priority]│    │
+│  │                                        │    │
+│  │  ✨ Recommendation 1: [HIGH Priority] │    │
+│  │  Create Comprehensive Pricing FAQ     │    │
+│  │                                        │    │
+│  │  📋 Theme: Pricing Questions          │    │
+│  │  🎯 Metric Focus: Answerability       │    │
+│  │  🔧 Action Type: Create New Page      │    │
+│  │                                        │    │
+│  │  📊 Data:                             │    │
+│  │  • 187 prompts need this content      │    │
+│  │  • Current citation rate: 12.3%       │    │
+│  │  • Potential: 25-30% if implemented   │    │
+│  │                                        │    │
+│  │  🎯 Target Pages:                     │    │
+│  │  ⚠️ No existing page found            │    │
+│  │  Recommended URL: /pricing-faq        │    │
+│  │                                        │    │
+│  │  ✅ Action Items:                     │    │
+│  │  1. Create /pricing-faq page          │    │
+│  │  2. Add 15-20 pricing FAQs            │    │
+│  │  3. Include comparison table          │    │
+│  │  4. Add "Last updated: Dec 2025"      │    │
+│  │                                        │    │
+│  │  ────────────────────────────────────  │    │
+│  │                                        │    │
+│  │  ✨ Recommendation 2: [HIGH Priority] │    │
+│  │  Update Product Comparison Content    │    │
+│  │                                        │    │
+│  │  📋 Theme: Product Comparisons        │    │
+│  │  🎯 Metric Focus: Freshness           │    │
+│  │  🔧 Action Type: Improve Existing     │    │
+│  │                                        │    │
+│  │  🎯 Target Pages:                     │    │
+│  │  ✅ /compare (LLM: 42% • Fresh: 28%)  │    │
+│  │  Validated: Page exists, needs update │    │
+│  │                                        │    │
+│  │  ✅ Action Items:                     │    │
+│  │  1. Update all prices to 2025         │    │
+│  │  2. Add release dates for products    │    │
+│  │  3. Remove discontinued items         │    │
+│  │  4. Add structured comparison table   │    │
+│  │                                        │    │
+│  │  [+ 10 more recommendations]          │    │
+│  └───────────────────────────────────────┘    │
+│                                                 │
+│  ┌───────────────────────────────────────┐    │
+│  │  💾 Note: Results cached to disk      │    │
+│  │  Click "Regenerate" after analyzing   │    │
+│  │  more URLs for updated recommendations│    │
 │  └───────────────────────────────────────┘    │
 └─────────────────────────────────────────────────┘
 ```
 
 ---
 
-### Step 7: Optimize & Iterate
+### Step 6: Optimize & Iterate
 
 **The continuous improvement cycle:**
 
@@ -771,77 +953,124 @@ Multiple views provide different insights into your AI visibility performance.
 └──────────────┬──────────────────────────────┘
                ↓
 ┌───────────────────────────────────────────────┐
-│  1. Review AI Recommendations                 │
-│     - Read all 5 suggestions                  │
-│     - Prioritize by impact                    │
-│     - Note current scores                     │
+│  1. Gather Insights from All Dashboards       │
+│     • AI Visibility: Per-URL insights         │
+│     • Citation Performance: Platform trends   │
+│     • Trends & Insights: Content gaps         │
+│     Prioritize by impact and effort           │
 └──────────────┬────────────────────────────────┘
                ↓
 ┌───────────────────────────────────────────────┐
-│  2. Implement Changes on Your Website         │
-│     Example:                                  │
-│     - Add question-based H2 headings          │
-│     - Rewrite intro with "you" language       │
-│     - Add current year mentions               │
-│     - Create FAQ section                      │
-│     - Update meta description                 │
+│  2. Choose Your Strategy                      │
+│     Option A: Quick Wins (1-2 days)           │
+│     • Update dates to 2025                    │
+│     • Add FAQ sections                        │
+│     • Improve H2 headings                     │
+│                                                │
+│     Option B: New Content (1-2 weeks)         │
+│     • Create pages for content gaps           │
+│     • Based on Trends & Insights              │
+│     • Target high-volume, low-citation themes │
+│                                                │
+│     Option C: Major Overhaul (1+ month)       │
+│     • Restructure poor-performing pages       │
+│     • Complete content rewrites               │
 └──────────────┬────────────────────────────────┘
                ↓
 ┌───────────────────────────────────────────────┐
-│  3. Wait 1-2 weeks for crawl updates          │
-│     - Give search engines time to recrawl     │
-│     - Monitor if AI models see changes        │
+│  3. Implement Changes on Your Website         │
+│     Track which recommendations you implement │
+│     Example actions:                          │
+│     ✅ Added pricing FAQ page                 │
+│     ✅ Updated /compare page to 2025          │
+│     ✅ Improved answerability on 3 pages      │
 └──────────────┬────────────────────────────────┘
                ↓
 ┌───────────────────────────────────────────────┐
-│  4. Re-analyze URL in Dashboard               │
-│     - Click "Analyze this URL" again          │
-│     - Compare new scores to old              │
-│     - Check if recommendations were followed  │
+│  4. Wait for AI Models to Re-Crawl (1-2 weeks)│
+│     • Different AI platforms crawl at          │
+│       different rates                          │
+│     • ChatGPT: ~1 week                        │
+│     • Perplexity: ~3-5 days                   │
+│     • Monitor but don't expect instant results│
 └──────────────┬────────────────────────────────┘
                ↓
 ┌───────────────────────────────────────────────┐
-│  5. Upload New Brand Presence Data            │
-│     - Get latest citation data                │
-│     - Upload new Excel file                   │
-│     - Compare citation rates                  │
+│  5. Re-Analyze & Compare                      │
+│     In AI Visibility Dashboard:               │
+│     • Click "Analyze" on updated URLs         │
+│     • Compare new LLM scores to old           │
+│     • Check if freshness, answerability improved│
+│     • Regenerate insights to see new suggestions│
 └──────────────┬────────────────────────────────┘
                ↓
 ┌───────────────────────────────────────────────┐
-│  6. Review Results                            │
-│     ✅ Did scores improve?                    │
-│     ✅ Did citation rate increase?            │
+│  6. Upload New Citation Data & Check Trends   │
+│     • Upload latest brand presence files      │
+│     • Go to Citation Performance              │
+│     • Compare week-over-week trends           │
+│     • Did citation rate increase?             │
+└──────────────┬────────────────────────────────┘
+               ↓
+┌───────────────────────────────────────────────┐
+│  7. Regenerate Content Opportunities          │
+│     In Trends & Insights:                     │
+│     • Click "Regenerate" button               │
+│     • System uses updated URL analysis        │
+│     • Get refreshed recommendations           │
+│     • See validation against new content      │
+└──────────────┬────────────────────────────────┘
+               ↓
+┌───────────────────────────────────────────────┐
+│  8. Measure Impact & Iterate                  │
+│     ✅ LLM scores improved?                   │
+│     ✅ Citation rates increased?              │
 │     ✅ Which changes had most impact?         │
+│     ✅ Which themes now performing better?    │
 └──────────────┬────────────────────────────────┘
                ↓
          ┌─────┴─────┐
          ↓           ↓
     [SUCCESS]    [NEEDS MORE]
          ↓           ↓
-    Replicate   Try different
-    on other    approaches
-    URLs            ↓
+    Document    Try different
+    what worked approaches
+    & replicate    ↓
          └─────┬─────┘
                ↓
         [Back to Step 1]
+        [Focus on next set of URLs]
 ```
 
 **Optimization cycle timeline:**
 ```
-Week 1: Initial analysis + Upload data
-  └─→ Implement quick wins (add year, questions)
+Week 1: Initial setup & analysis
+  Day 1: Upload URLs + citation data
+  Day 2: Batch analyze all URLs (use batch mode!)
+  Day 3: Review all 3 dashboards
+  Day 4-5: Generate all AI recommendations
+  Day 6-7: Implement quick wins
+    • Update dates to 2025
+    • Add FAQ sections
+    • Improve H2 headings
 
-Week 2-3: Monitor, no changes
-  └─→ Let AI models re-crawl content
+Week 2-3: Let AI models re-crawl
+  • Monitor only, no changes
+  • Different platforms crawl at different rates
+  • Upload weekly citation data to track changes
 
-Week 4: Re-analyze + Upload new citation data
-  └─→ Measure impact
+Week 4: Measure impact
+  Day 1: Upload new citation data
+  Day 2: Re-analyze updated URLs
+  Day 3: Compare before/after metrics
+  Day 4: Regenerate Trends & Insights
+  Day 5-7: Decide next actions based on results
 
-Week 5-6: Implement medium-effort changes
-  └─→ FAQ sections, lists, structured data
-
-Week 7-8: Monitor improvements
-  └─→ Continue cycle
+Week 5+: Continue cycle
+  • Focus on new URLs or content opportunities
+  • Implement medium-effort changes
+  • Build new pages for content gaps
+  • Monitor trends and adjust strategy
 ```
 
 ---
@@ -856,10 +1085,11 @@ Week 7-8: Monitor improvements
 └──────────────────┬─────────────────────────────────────────┘
                    ↓
 ┌────────────────────────────────────────────────────────────┐
-│                  FRONTEND (React)                           │
+│                  FRONTEND (React + Vite)                    │
 │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐    │
-│  │AIVisibility  │  │Citation      │  │Projects      │    │
-│  │Page          │  │Performance   │  │Page          │    │
+│  │AI Visibility │  │Citation      │  │Trends &      │    │
+│  │Analysis      │  │Performance   │  │Insights      │    │
+│  │Page          │  │Page          │  │Page (NEW!)   │    │
 │  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘    │
 │         │                  │                  │             │
 │         └──────────────────┼──────────────────┘             │
@@ -867,6 +1097,8 @@ Week 7-8: Monitor improvements
 │                    ┌───────────────┐                        │
 │                    │ AppContext    │                        │
 │                    │ (Global State)│                        │
+│                    │ + localStorage│                        │
+│                    │ (Persistence) │                        │
 │                    └───────┬───────┘                        │
 └────────────────────────────┼────────────────────────────────┘
                              ↓
@@ -877,56 +1109,97 @@ Week 7-8: Monitor improvements
 │                                                             │
 │  ┌────────────────────────────────────────────────────┐   │
 │  │  API Routes (routes/)                              │   │
-│  │  ├─ /api/unified/*                                 │   │
-│  │  ├─ /api/citations/*                               │   │
-│  │  ├─ /api/projects/*                                │   │
-│  │  └─ /api/content-opportunities/*                   │   │
+│  │  ├─ /api/unified/*          (Main project routes) │   │
+│  │  │   ├─ POST /create-from-file                    │   │
+│  │  │   ├─ POST /:id/upload-citations                │   │
+│  │  │   ├─ POST /:id/analyze-content                 │   │
+│  │  │   ├─ POST /:id/generate-insights               │   │
+│  │  │   ├─ POST /:id/generate-recommendations        │   │
+│  │  │   ├─ POST /:id/content-opportunities          │   │
+│  │  │   └─ GET  /:id/dashboard                       │   │
+│  │  │                                                 │   │
+│  │  ├─ /api/citations/*        (Citation routes)     │   │
+│  │  │   ├─ POST /upload (multi-file support)        │   │
+│  │  │   ├─ POST /generate-recommendations (NEW!)    │   │
+│  │  │   ├─ GET  /results/:jobId                     │   │
+│  │  │   └─ GET  /trends                             │   │
+│  │  │                                                 │   │
+│  │  └─ /api/spacecat/*         (Spacecat integration)│   │
 │  └──────────────────┬─────────────────────────────────┘   │
 │                     ↓                                       │
 │  ┌────────────────────────────────────────────────────┐   │
 │  │  Services (services/)                              │   │
-│  │  ├─ unifiedAnalyzer.js    (orchestration)         │   │
-│  │  ├─ citationProcessor.js  (Excel parsing)         │   │
-│  │  ├─ hybridContentAnalyzer.js (scraping + LLM)    │   │
-│  │  ├─ insightsGenerator.js  (Azure OpenAI)         │   │
-│  │  └─ contentPatternAnalyzer.js                     │   │
+│  │  ├─ unifiedAnalyzer.js          (orchestration)   │   │
+│  │  ├─ citationProcessor.js        (Excel parsing)   │   │
+│  │  ├─ hybridContentAnalyzer.js    (scraping + LLM)  │   │
+│  │  ├─ insightsGenerator.js        (per-URL AI)      │   │
+│  │  ├─ visibilityRecommendationAI.js (dashboard AI)  │   │
+│  │  ├─ citationRecommendationAI.js (citation AI)     │   │
+│  │  ├─ contentOpportunityAI.js     (trends AI) NEW!  │   │
+│  │  ├─ promptAnalyzer.js           (prompt patterns) │   │
+│  │  ├─ contentPatternAnalyzer.js   (content gaps)    │   │
+│  │  └─ websiteStructureValidator.js (validation)     │   │
+│  └──────────────────┬─────────────────────────────────┘   │
+│                     ↓                                       │
+│  ┌────────────────────────────────────────────────────┐   │
+│  │  Utilities (utils/)                                │   │
+│  │  ├─ browserPool.js    (Puppeteer pool 40-50% faster)│ │
+│  │  ├─ cache.js          (In-memory caching)         │   │
+│  │  ├─ rateLimiter.js    (Rate limiting)             │   │
+│  │  ├─ validation.js     (Input validation)          │   │
+│  │  └─ logger.js         (Structured logging)        │   │
 │  └──────────────────┬─────────────────────────────────┘   │
 │                     ↓                                       │
 │  ┌────────────────────────────────────────────────────┐   │
 │  │  External Dependencies                             │   │
 │  │  ├─ Puppeteer (browser automation)                │   │
 │  │  ├─ Cheerio (HTML parsing)                        │   │
-│  │  ├─ ExcelJS (Excel parsing)                       │   │
+│  │  ├─ ExcelJS (Excel parsing, multi-file)          │   │
 │  │  └─ fs-extra (file operations)                    │   │
 │  └──────────────────┬─────────────────────────────────┘   │
 └────────────────────────────────────────────────────────────┘
                      ↓
 ┌────────────────────────────────────────────────────────────┐
-│              EXTERNAL SERVICES                              │
+│              EXTERNAL SERVICES & TOOLS                      │
 │  ┌──────────────────────┐  ┌──────────────────────┐       │
 │  │ Azure OpenAI         │  │ LLM Presence Tracker │       │
 │  │ (GPT-4o)             │  │ (External Tool)      │       │
-│  │ - Insights generation│  │ - Score calculation  │       │
-│  │ - Prompt generation  │  │ - Page classification│       │
-│  └──────────────────────┘  └──────────────────────┘       │
+│  │ ────────────────────│  │ - 6 metric scores    │       │
+│  │ 3 AI Services:       │  │ - Page classification│       │
+│  │ • Per-URL insights   │  │ - Prompt generation  │       │
+│  │ • Dashboard recs     │  │ - Weighted scoring   │       │
+│  │ • Content opps       │  └──────────────────────┘       │
+│  └──────────────────────┘                                  │
 └────────────────────────────────────────────────────────────┘
                      ↓
 ┌────────────────────────────────────────────────────────────┐
 │               FILE STORAGE (data/)                          │
 │                                                             │
 │  data/                                                      │
-│  ├── uploads/                                              │
-│  │   ├── urls-{timestamp}.csv                             │
-│  │   └── brand-presence-{timestamp}.xlsx                  │
+│  ├── uploads/                   (User uploads)             │
+│  │   ├── {timestamp}-urls.csv                             │
+│  │   └── {timestamp}-brandpresence-*.xlsx (multi-file)    │
 │  │                                                          │
-│  ├── results/                                              │
-│  │   ├── unified-{projectId}.json    (project data)       │
-│  │   ├── citations-{jobId}.json      (citation data)      │
-│  │   └── {contentJobId}.json         (analysis results)   │
+│  ├── results/                   (Analysis results)         │
+│  │   ├── unified-{projectId}.json       (project state)   │
+│  │   ├── {jobId}-citations.json         (citation data)   │
+│  │   ├── {contentJobId}.json            (URL analysis)    │
+│  │   ├── {projectId}-opportunities.json (trends, NEW!)    │
+│  │   └── temp/                          (temp files)      │
 │  │                                                          │
-│  └── projects/                                             │
-│      └── project-{oldId}.json        (legacy projects)    │
+│  └── projects/                  (Legacy, deprecated)       │
 └────────────────────────────────────────────────────────────┘
+                     ↑
+                     │
+         ┌───────────┴───────────┐
+         ↓                       ↓
+┌──────────────────┐  ┌──────────────────┐
+│ Browser Storage  │  │ Backend Caching  │
+│ (localStorage)   │  │ (In-memory Maps) │
+│ - Active project │  │ - Dashboard data │
+│ - Citation data  │  │ - Citation data  │
+│ - Auto-restore   │  │ - TTL: 5 minutes │
+└──────────────────┘  └──────────────────┘
 ```
 
 ---
@@ -1271,46 +1544,85 @@ Quarterly:
 AIVisibilityDashboard/
 ├── backend/
 │   ├── routes/
-│   │   ├── unified.js          → Main API routes
+│   │   ├── unified.js          → Main project API routes
 │   │   ├── citations.js        → Citation endpoints
-│   │   └── projects.js         → Project management
+│   │   └── spacecat.js         → Spacecat API integration
 │   │
 │   ├── services/
-│   │   ├── unifiedAnalyzer.js        → Orchestrates everything
-│   │   ├── citationProcessor.js      → Excel parsing logic
-│   │   ├── hybridContentAnalyzer.js  → Content scraping + LLM
-│   │   ├── insightsGenerator.js      → Azure OpenAI insights
-│   │   └── contentPatternAnalyzer.js → Pattern detection
+│   │   ├── unifiedAnalyzer.js              → Project orchestration
+│   │   ├── citationProcessor.js            → Multi-file Excel parsing
+│   │   ├── hybridContentAnalyzer.js        → Content scraping + LLM
+│   │   ├── insightsGenerator.js            → Per-URL AI insights
+│   │   ├── visibilityRecommendationAI.js   → Dashboard AI recs
+│   │   ├── citationRecommendationAI.js     → Citation AI recs
+│   │   ├── contentOpportunityAI.js         → Trends AI recs (NEW!)
+│   │   ├── promptAnalyzer.js               → Prompt pattern analysis
+│   │   ├── contentPatternAnalyzer.js       → Content gap detection
+│   │   ├── websiteStructureValidator.js    → Validation logic
+│   │   ├── fileParser.js                   → URL file parser
+│   │   └── sitemapParser.js                → Sitemap handling
 │   │
 │   ├── utils/
-│   │   ├── config.js           → Centralized config
-│   │   └── logger.js           → Logging utility
+│   │   ├── config.js           → Centralized configuration
+│   │   ├── logger.js           → Structured logging
+│   │   ├── cache.js            → In-memory caching (5 min TTL)
+│   │   ├── browserPool.js      → Puppeteer browser pooling
+│   │   ├── rateLimiter.js      → Rate limiting per service
+│   │   ├── validation.js       → Input validation
+│   │   └── errors.js           → Custom error classes
 │   │
 │   └── server.js               → Express app entry point
 │
 ├── frontend/
 │   ├── src/
 │   │   ├── pages/
-│   │   │   ├── AIVisibility.jsx         → Main dashboard
-│   │   │   ├── CitationPerformance.jsx  → Citation analytics
-│   │   │   └── Projects.jsx             → Project list
+│   │   │   ├── Home.jsx                  → Landing page
+│   │   │   ├── AIVisibility.jsx          → Main dashboard
+│   │   │   ├── CitationPerformance.jsx   → Citation analytics
+│   │   │   └── TrendsInsights.jsx        → Content opportunities (NEW!)
+│   │   │
+│   │   ├── components/
+│   │   │   ├── ContentOpportunities.jsx  → Trends component
+│   │   │   ├── LLMScoreTooltip.jsx      → Metric tooltips
+│   │   │   ├── SkeletonLoader.jsx       → Loading states
+│   │   │   ├── Toast.jsx                → Notifications
+│   │   │   ├── Layout.jsx               → App layout
+│   │   │   └── citation/                → Citation components
+│   │   │       ├── VisualAnalyticsSection.jsx
+│   │   │       ├── FiltersSection.jsx
+│   │   │       └── MetricCard.jsx
 │   │   │
 │   │   ├── contexts/
-│   │   │   └── AppContext.jsx  → Global state management
+│   │   │   └── AppContext.jsx  → Global state + localStorage
 │   │   │
-│   │   └── App.jsx             → React router setup
+│   │   └── App.jsx             → React router + routes
 │   │
-│   └── package.json            → Dependencies (React, Chart.js)
+│   └── package.json            → React, Vite, Chart.js, Tailwind
 │
-├── data/
-│   ├── uploads/                → Uploaded files
-│   ├── results/                → Analysis results
-│   └── projects/               → Project data
+├── data/                        (Auto-created)
+│   ├── uploads/                → User uploaded files
+│   ├── results/                → Analysis results & cache
+│   │   └── temp/              → Temporary processing files
+│   └── projects/               → (Legacy, unused)
 │
 ├── external-tools/
-│   └── llm-presence-tracker/   → External scoring tool
+│   └── llm-presence-tracker/   → LLM scoring engine
+│       ├── analyzers/          → 6 metric analyzers
+│       └── main.js             → Entry point
 │
-└── #1_METRICS_GUIDE.md         → This companion guide!
+├── logs/                        (Auto-created)
+│   ├── combined.log            → All logs
+│   └── error.log               → Error logs only
+│
+├── docs/
+│   ├── GETTING_STARTED.md      → Setup guide
+│   ├── USER_GUIDE.md           → How to use
+│   └── DEVELOPER_GUIDE.md      → Architecture
+│
+├── #1_METRICS_GUIDE.md         → Metrics explanation
+├── #2_WORKFLOW_GUIDE.md        → This file!
+├── README.md                    → Project overview
+└── start.bat                    → Quick start script (Windows)
 ```
 
 ---
@@ -1398,31 +1710,52 @@ Check:
 ## 🎯 Summary: The Complete Journey
 
 ```
-User uploads URLs + brand presence data
+User uploads URL file + domain
          ↓
-System processes and calculates citation rates
+Project created automatically with all URLs
          ↓
-User clicks "Analyze URL"
+User uploads brand presence data (1-50 Excel files)
          ↓
-System scrapes content and calculates 6 LLM scores
+System processes & calculates citation rates
          ↓
-User clicks "Generate AI Insights"
+User analyzes URLs (batch mode: select multiple!)
          ↓
-System calls Azure OpenAI for personalized recommendations
+System scrapes content & calculates 6 LLM scores per URL
          ↓
-User views complete analytics across multiple dashboards
+User generates AI insights (3 types available)
          ↓
-User implements recommendations on their website
+   ┌─────┴──────┬─────────────┐
+   ↓            ↓             ↓
+Per-URL     Dashboard    Content Opportunities
+Insights    Strategy     (Prompt Analysis)
+   └─────┬──────┴─────────────┘
+         ↓
+User views insights across 3 dashboards:
+  • AI Visibility Analysis (URL-level)
+  • Citation Performance (Trends & platforms)
+  • Trends & Insights (Content gaps & themes)
+         ↓
+User implements recommendations
          ↓
 Wait 1-2 weeks for AI models to re-crawl
          ↓
-User re-analyzes and uploads new data
+User re-analyzes URLs & uploads new citation data
          ↓
-Measure improvement and repeat cycle
+User regenerates Trends & Insights (validation updated!)
+         ↓
+Measure improvement & repeat cycle
 ```
 
-**Average time to first insights: 5-10 minutes** ⚡
-**Average improvement cycle: 2-4 weeks** 📈
+**⚡ Performance Metrics:**
+- Time to first insights: **2-5 minutes** (with batch analysis)
+- Analysis speed: **5-8 seconds per URL**
+- Batch processing: **Configurable delays** (rate-limit friendly)
+- Dashboard load time: **~200ms** (with caching)
+
+**📈 Improvement Cycle:**
+- Quick wins visible: **1-2 weeks**
+- Full optimization cycle: **4-6 weeks**
+- Continuous monitoring: **Weekly citation uploads recommended**
 
 ---
 
